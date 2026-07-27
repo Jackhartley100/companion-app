@@ -48,8 +48,10 @@ targets:
         product: CompanionCore
       - package: Companion
         product: CompanionUI
-    info:
-      path: Sources/Companion/Info.plist
+    # Deliberately no `info:` key. That would make XcodeGen *generate* a plist at
+    # the given path, overwriting the hand-written one — including every usage
+    # description and the background-location mode. Pointing INFOPLIST_FILE at
+    # the committed file uses it as-is.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.companion.app
@@ -71,10 +73,9 @@ schemes:
         Companion: all
     run:
       config: Debug
+    # The package's tests are not listed here: XcodeGen cannot reference a Swift
+    # package's test targets from an app scheme. Run them with `swift test`, or
+    # from Xcode's Test navigator, where the local package's tests appear once
+    # the project is open.
     test:
       config: Debug
-      # The package's own tests run under `swift test`; this scheme exists so
-      # they can also be run from Xcode against the iOS simulator.
-      targets:
-        - CompanionCoreTests
-        - CompanionUITests
