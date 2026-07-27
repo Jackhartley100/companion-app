@@ -37,7 +37,17 @@ struct CompanionApp: App {
     private func makeEnvironment() {
         do {
             startupError = nil
-            environment = try AppEnvironment.live()
+            let environment = try AppEnvironment.live()
+            // UI tests need a clean install every run, and reinstalling the app
+            // between each one is far slower than clearing the store.
+            if ProcessInfo.processInfo.arguments.contains("-companion.resetStateOnLaunch") {
+                Task {
+                    try? await environment.profileRepository.deleteEverything()
+                    self.environment = environment
+                }
+            } else {
+                self.environment = environment
+            }
         } catch {
             startupError = error.localizedDescription
         }

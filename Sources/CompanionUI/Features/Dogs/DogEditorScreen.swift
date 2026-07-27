@@ -39,6 +39,7 @@ struct DogEditorScreen: View {
     @State private var photoData: Data?
     @State private var isSaving = false
     @State private var didPopulate = false
+    @FocusState private var isFieldFocused: Bool
 
     enum AgeKind: String, CaseIterable, Identifiable {
         case dateOfBirth
@@ -70,6 +71,12 @@ struct DogEditorScreen: View {
         }
         .navigationTitle(mode.existingDog == nil ? "Add your dog" : "Edit \(trimmedName)")
         .compactNavigationTitle()
+        // Typing the name brings up the keyboard, which covers the save button
+        // at the bottom of the form. Swiping the form down dismisses it, and the
+        // toolbar gives a deliberate way out for anyone who does not discover
+        // that. Confirmed against the real keyboard in the simulator.
+        .scrollDismissesKeyboardInteractively()
+        .keyboardDoneButton(isFocused: isFieldFocused) { isFieldFocused = false }
         .onAppear(perform: populateIfNeeded)
         .task(id: photoItem) { await loadSelectedPhoto() }
     }
@@ -83,14 +90,22 @@ struct DogEditorScreen: View {
                         if let photoData, let image = Image(data: photoData) {
                             image.resizable().scaledToFill()
                         } else {
-                            Circle().fill(Theme.Colour.accent.opacity(0.14))
+                            // Sized explicitly: an unbounded `Circle()` takes the
+                            // whole size the row proposes, and the outer `.frame`
+                            // does not clip it.
+                            Circle()
+                                .fill(Theme.Colour.accent.opacity(0.14))
+                                .frame(width: 108, height: 108)
                             Image(systemName: "camera")
                                 .font(.title2)
                                 .foregroundStyle(Theme.Colour.accent)
                         }
                     }
                     .frame(width: 108, height: 108)
+                    .clipped()
                     .clipShape(Circle())
+                    // Decorative preview; the PhotosPicker below is the control.
+                    .allowsHitTesting(false)
 
                     PhotosPicker(
                         photoData == nil ? "Add a photo" : "Change photo",
@@ -111,6 +126,9 @@ struct DogEditorScreen: View {
         Section("Name") {
             TextField("Name", text: $name)
                 .textContentType(.name)
+                .focused($isFieldFocused)
+                .submitLabel(.done)
+                .onSubmit { isFieldFocused = false }
         }
     }
 

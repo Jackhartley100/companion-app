@@ -66,11 +66,28 @@ targets:
         # automatically; the Info.plist declares the background mode itself.
         ENABLE_BITCODE: NO
 
+  CompanionUIAutomation:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests/CompanionUIAutomation
+    dependencies:
+      - target: Companion
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.companion.app.uitests
+        TEST_TARGET_NAME: Companion
+        CODE_SIGN_STYLE: Automatic
+        # The test bundle has no hand-written plist, so let Xcode synthesise one.
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   Companion:
     build:
       targets:
         Companion: all
+        CompanionUIAutomation: [test]
     run:
       config: Debug
     # The package's tests are not listed here: XcodeGen cannot reference a Swift
@@ -79,3 +96,5 @@ schemes:
     # the project is open.
     test:
       config: Debug
+      targets:
+        - CompanionUIAutomation

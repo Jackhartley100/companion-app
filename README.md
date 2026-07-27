@@ -7,71 +7,68 @@ keep a lifetime of adventures with your dog in one place.
 
 ---
 
-## ⚠️ Build status — read this first
+## Build status
 
 | What | Status |
 |---|---|
-| `CompanionCore` (domain, tracking, statistics, persistence) | ✅ Compiles, 131 tests passing |
-| `CompanionUI` (design system, every screen, previews) | ✅ Compiles (for macOS), 17 journey tests passing |
-| `Companion` (the iOS app target) | ⚠️ **Never compiled** — needs Xcode |
-| Running on a simulator or device | ⚠️ **Never run** — needs Xcode |
+| `CompanionCore` (domain, tracking, statistics, persistence) | ✅ Builds, 165 tests passing |
+| `CompanionUI` (design system, every screen, previews) | ✅ Builds |
+| `Companion` (the iOS app target) | ✅ Builds clean for iOS, zero warnings |
+| Running in the simulator | ✅ Verified — onboarding, live recording, pause/resume, save, history |
+| Running on a physical iPhone | ⚠️ Not yet tried |
 
-**Xcode is not installed on the development machine this was built on** — only the
-Command Line Tools. That means no `xcodebuild`, no iOS SDK and no simulator.
+Built and verified against **Xcode 26.6 / iOS 26.5 simulator**. A walk has been
+recorded end to end with simulated GPS: the route draws on the map, distance and
+pace update live, pausing breaks the polyline, and the saved walk appears in
+history.
 
-The architecture is a direct response to that constraint, and it is a good one
-regardless: everything except a 50-line app entry point lives in a multi-platform
-Swift package that builds and tests for macOS from the command line. So the domain
-logic, the SwiftUI views, the MapKit map, the Swift Charts charts and every preview
-are all genuinely compiled and type-checked. What has *not* been verified is the
-iOS app target, its Info.plist wiring, code signing, and anything that only happens
-on a real device — background location, haptics, the photo picker.
+Everything except a ~50-line app entry point lives in a multi-platform Swift
+package that also builds for macOS, so the domain layer and the whole UI can be
+compiled and unit-tested from the command line in under a second — without
+launching Xcode. That started as a workaround for not having Xcode installed; it
+has stayed because the fast loop is worth keeping.
 
-Do not take "it compiles" as "it runs on an iPhone". See
+Still unverified: a physical device, and therefore real GPS accuracy, background
+recording with the screen locked, and haptics. See
 [Known limitations](#known-limitations).
 
 ---
 
 ## Quick start
 
-### Without Xcode (what works today)
+### Fast loop — domain and UI, no Xcode needed
 
 ```bash
 make check
 ```
 
-That builds every target with warnings treated as errors and runs the full test
-suite. Individually:
+Builds every package target with warnings treated as errors and runs all 165
+tests. Takes seconds.
 
-```bash
-swift build
-```
-
-```bash
-swift test
-```
-
-### With Xcode (to actually run the app)
-
-1. Install Xcode 16 or later from the App Store.
-2. Point the toolchain at it:
-
-```bash
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-```
-
-3. Install the project generator and generate the project:
+### Running the app
 
 ```bash
 brew install xcodegen && make xcodeproj
 ```
 
-4. Open `Companion.xcodeproj`, choose an iPhone simulator, and run.
+Then open `Companion.xcodeproj`, choose an iPhone simulator, and run. If
+`xcodebuild` complains that it cannot find Xcode:
 
-Expect to fix a small number of iOS-only compilation errors on that first build —
-the app target has never been near a compiler. They will be confined to
-`Sources/Companion/` and to the `#if os(iOS)` branches in
-`Sources/CompanionUI/DesignSystem/Platform.swift`.
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
+
+Xcode 26 ships without simulator runtimes — if there are no destinations, install
+one from **Xcode → Settings → Components**.
+
+### UI tests
+
+```bash
+xcodebuild -scheme Companion -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' test
+```
+
+Five XCUITest cases cover onboarding, control reachability, pause/resume, the
+two-tap finish, and a saved walk reaching history.
 
 ### Recording a walk in the Simulator
 
@@ -170,7 +167,7 @@ swift test
 | Walk recorder | Every state transition, permission failures, save-failure retry, signal interruption, crash recovery |
 | User journeys | Onboarding, add dog, record → pause → resume → finish → history, multi-dog walks, goal advancement, deletion, unit changes, storage failure |
 
-Two real bugs were found and fixed by these tests during development:
+Bugs these tests found and fixed:
 
 1. **Pause gaps were being counted as distance.** The route filter reset correctly
    on resume, but `WalkSession.append` still measured from the last pre-pause
@@ -180,12 +177,32 @@ Two real bugs were found and fixed by these tests during development:
    completing onboarding both did a read-modify-write on the profile; whichever
    write finished last won, and the loser's change vanished. Profile writes are
    now ordered.
+3. **`UIApplication` touched off the main actor.** Invisible to the macOS build,
+   because `UIApplication` does not exist there and the bodies compiled away to
+   nothing. Four warnings on the first real iOS compile.
+4. **Zero distance rendered in two different units.** Today showed "0.00 mi" for
+   the day and "0 ft" for the week — the same nothing, measured twice.
+5. **XcodeGen was silently overwriting the Info.plist**, taking every usage
+   description and the background-location mode with it.
+
+### UI tests
+
+```bash
+xcodebuild -scheme Companion -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' test
+```
+
+| Test | Covers |
+|---|---|
+| `testCanCompleteOnboarding` | Welcome → account → owner → dog → ready |
+| `testAddDogFormControlsAreHittable` | Every control on the add-dog form is reachable, not merely visible |
+| `testPauseAndResume` | Pause offers Resume and Discard; resuming hides Discard |
+| `testFinishRequiresTwoTaps` | One tap must *not* end a walk; two taps saves it |
+| `testSavedWalkAppearsInHistory` | Record → finish → save → the walk is in Activities |
 
 ### Not covered
 
-XCUITest UI automation needs Xcode and a simulator. The `CompanionUITests` suite
-drives the same `AppModel` calls the buttons make, in the same order, which covers
-the logic — but it does not prove a button is tappable or that a sheet presents.
+Anything that only happens on real hardware: GPS accuracy in the wild, background
+recording with the screen locked, and haptics.
 
 ---
 
@@ -272,17 +289,19 @@ The product therefore never claims otherwise:
 
 ## Known limitations
 
-1. **The iOS app target has never been compiled or run.** No Xcode on the build
-   machine. Everything else is verified.
-2. **No XCUITest coverage**, for the same reason.
+1. **Never run on a physical iPhone.** Simulator only, so real GPS accuracy,
+   background recording with the screen locked, and haptics are all unverified.
+2. **The two-tap finish window is 4 seconds.** Comfortable for a deliberate double
+   tap, but worth revisiting after real outdoor use — gloves and a lead may
+   argue for longer.
 3. **Persistence is JSON files, not SwiftData.** The SwiftData macro plugin ships
    with Xcode and cannot run under the Command Line Tools, so a SwiftData model
    layer could not have been compiled or tested here. The file store is a real,
    tested implementation behind `ActivityRepository` and friends — see
    `DECISIONS.md` ADR-0003 for the swap path.
-4. **Previews use `PreviewProvider`, not the `#Preview` macro** — same macro-plugin
-   reason. They render identically in Xcode's canvas, and this way every one of
-   them is compile-verified.
+4. **Previews use `PreviewProvider`, not the `#Preview` macro** — so they compile
+   under the command-line toolchain too. They render identically in Xcode's
+   canvas, and this way every one of them stays compile-verified by `make check`.
 5. **No app icon or launch image.** `Assets.xcassets` needs to be added in Xcode.
 6. **Welcome screen artwork is a native composition**, not photography. Marked
    with a TODO.

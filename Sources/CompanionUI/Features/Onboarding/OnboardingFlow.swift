@@ -8,6 +8,7 @@ import CompanionCore
 /// requested later, in the moment they make sense.
 struct OnboardingFlow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step: Step = .welcome
     @State private var draftProfile = UserProfile()
     @State private var authenticationError: String?
@@ -28,11 +29,11 @@ struct OnboardingFlow: View {
                     WelcomeScreen(
                         getStarted: {
                             model.environment.analytics.track(.onboardingStarted)
-                            step = .account
+                            advance(to: .account)
                         },
                         signIn: {
                             model.environment.analytics.track(.onboardingStarted)
-                            step = .account
+                            advance(to: .account)
                         }
                     )
                 case .account:
@@ -44,7 +45,7 @@ struct OnboardingFlow: View {
                     OwnerDetailsScreen(profile: $draftProfile) {
                         Task {
                             await model.saveProfile(draftProfile)
-                            step = .addDog
+                            advance(to: .addDog)
                         }
                     }
                 case .addDog:
@@ -57,7 +58,7 @@ struct OnboardingFlow: View {
                             )
                         )
                         await createSuggestedGoal(for: dog)
-                        step = .ready(dogName: dog.name)
+                        advance(to: .ready(dogName: dog.name))
                     }
                 case .ready(let dogName):
                     ReadyScreen(dogName: dogName) {
@@ -65,7 +66,21 @@ struct OnboardingFlow: View {
                     }
                 }
             }
-            .respectingReduceMotion(.companionStandard, value: step)
+            // Step changes are animated at the mutation sites (`advance(to:)`)
+            // rather than with a blanket `.animation(value:)` over the whole
+            // switch, so the animation applies to the step transition itself
+            // and not to every layout change inside whichever screen is shown.
+            .transition(.opacity)
+        }
+    }
+
+    /// Moves to the next step, animated unless the owner has asked for reduced
+    /// motion.
+    private func advance(to next: Step) {
+        if reduceMotion {
+            step = next
+        } else {
+            withAnimation(.companionStandard) { step = next }
         }
     }
 
@@ -79,7 +94,7 @@ struct OnboardingFlow: View {
                 preferredWeightUnit: .default()
             )
             authenticationError = nil
-            step = .owner
+            advance(to: .owner)
         } catch let error as AuthenticationError {
             authenticationError = error.userMessage
         } catch {

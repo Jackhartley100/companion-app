@@ -32,8 +32,12 @@ public struct Formatters: Sendable {
     /// reads as less informative than "180 m" on a short walk.
     public func distance(_ metres: Double, style: Measurement<UnitLength>.FormatStyle.UnitWidth = .abbreviated) -> String {
         let measurement = Measurement(value: metres, unit: UnitLength.meters)
-        let useShortUnit = metres < 1_000 && distanceUnit == .kilometres
-            || (distanceUnit == .miles && metres < 160.9)
+        // Zero stays in the major unit. Otherwise a screen ends up showing
+        // "0.00 mi" for today's distance and "0 ft" for the week's, which reads
+        // as two different measurements of the same nothing.
+        let useShortUnit = metres > 0
+            && (metres < 1_000 && distanceUnit == .kilometres
+                || (distanceUnit == .miles && metres < 160.9))
 
         if useShortUnit {
             return measurement.converted(to: distanceUnit.shortUnit).formatted(

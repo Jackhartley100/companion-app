@@ -15,6 +15,10 @@ struct WalkPreparationSheet: View {
     @State private var isRequestingPermission = false
     @State private var showsPermissionExplanation = false
     @State private var didPrepare = false
+    /// The real authorisation status. The recorder reaching `.ready` only means
+    /// nothing is blocking a start — with `.notDetermined` the system prompt is
+    /// still to come, and saying "Location is ready" then would be untrue.
+    @State private var permissionStatus: LocationAuthorizationStatus = .notDetermined
 
     var body: some View {
         NavigationStack {
@@ -43,6 +47,7 @@ struct WalkPreparationSheet: View {
             model.environment.analytics.track(.walkPreparationOpened)
             selectedDogIDs = Set([model.selectedDogID].compactMap { $0 })
             await model.recorder.prepare()
+            permissionStatus = await model.environment.locationPermissions.currentStatus()
         }
     }
 
@@ -135,8 +140,13 @@ struct WalkPreparationSheet: View {
     private var gpsStatusRow: some View {
         switch model.recorder.state {
         case .ready, .recording:
-            Label("Location is ready", systemImage: "location.fill")
-                .foregroundStyle(Theme.Colour.success)
+            if permissionStatus.isUsable {
+                Label("Location is ready", systemImage: "location.fill")
+                    .foregroundStyle(Theme.Colour.success)
+            } else {
+                Label("Location access will be requested", systemImage: "location")
+                    .foregroundStyle(Theme.Colour.secondaryText)
+            }
         case .preparing:
             HStack(spacing: Theme.Space.s) {
                 ProgressView().controlSize(.small)

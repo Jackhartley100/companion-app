@@ -54,6 +54,9 @@ It is also a good structure independently of the constraint: it enforces the lay
 boundary, keeps build times low, and makes the domain reusable by a future Watch
 app or extension.
 
+> **Update:** Xcode is now installed and the app target builds and runs. The
+> structure was kept deliberately — see ADR-0013.
+
 ---
 
 ## ADR-0003 — JSON file persistence rather than SwiftData
@@ -86,6 +89,9 @@ path is contained. Everything depends on `ActivityRepository`, `DogRepository` a
 friends, so introducing `SwiftDataActivityRepository` alongside the file store is a
 new file plus one line in `AppEnvironment.live()`.
 
+> **Update:** Xcode is now installed, so SwiftData is available. The swap is
+> unblocked but not yet made — see ADR-0013.
+
 ---
 
 ## ADR-0004 — `PreviewProvider` rather than the `#Preview` macro
@@ -99,8 +105,10 @@ checked.
 
 **Consequences.** Every preview in the codebase is compile-verified, and they
 render identically in Xcode's canvas. `PreviewProvider` is more verbose and is the
-older idiom. Migrating to `#Preview` is a mechanical change once Xcode is the build
-environment, and is not urgent.
+older idiom. Migrating to `#Preview` is a mechanical change and remains optional.
+
+> **Update:** Xcode is now installed, so `#Preview` would work. Kept as-is so that
+> `make check` continues to compile every preview without a simulator — ADR-0013.
 
 ---
 
@@ -250,3 +258,42 @@ which is the correct outcome — there is no version of that map that does not g
 away where it started. The full route is always kept on device, so the owner's own
 history stays accurate; trimming happens only on the way out. `MapCameraPosition.fitting`
 also enforces a minimum span, so a very short walk does not zoom to street level.
+
+---
+
+## ADR-0013 — Keep the package-first structure now that Xcode is installed
+
+**Context.** ADR-0002 chose a package-first layout because Xcode was unavailable.
+Xcode 26.6 is now installed, so SwiftData and the `#Preview` macro would both work
+and the original constraint has gone.
+
+**Decision.** Keep the structure, and keep JSON persistence and `PreviewProvider`
+for now.
+
+**Consequences.** `make check` builds every target with warnings-as-errors and
+runs 165 tests in well under a second, without launching a simulator. That loop is
+worth more than the syntax sugar of `#Preview`, and it keeps the layer boundary
+enforced by the compiler rather than by convention. Migrating persistence to
+SwiftData remains a contained change behind the repository protocols (ADR-0003)
+and is now unblocked whenever it is wanted — it is no longer forced either way.
+
+---
+
+## ADR-0014 — XCUITest covers reachability, not just logic
+
+**Context.** The package-level `CompanionUITests` drive `AppModel` directly, which
+covers the logic behind every button but cannot tell whether a control is actually
+on screen and tappable. Manual testing wasted a long time on a form whose rows
+looked fine but did not appear to respond — which turned out to be mis-scaled tap
+coordinates, not an app bug. Dumping the real accessibility hierarchy answered in
+one run what guesswork had not answered in a dozen.
+
+**Decision.** Add a `CompanionUIAutomation` XCUITest target covering onboarding,
+control hittability, pause/resume, the two-tap finish, and a saved walk reaching
+history.
+
+**Consequences.** Assertions like `XCTAssertTrue(nameField.isHittable)` state the
+property that actually matters — reachable, not merely rendered. The two-tap
+finish in particular is only meaningfully testable this way: `testFinishRequiresTwoTaps`
+asserts that one tap does *not* end the walk, which is the whole point of the
+control and is invisible to a unit test.

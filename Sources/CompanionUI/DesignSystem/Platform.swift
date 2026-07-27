@@ -12,6 +12,11 @@ import AppKit
 /// codebase — including every view — can be compiled and tested from the command
 /// line without a full Xcode installation. These shims keep the `#if` noise in
 /// one file instead of scattering it through feature code.
+/// `UIApplication` is main-actor-isolated, so both of these are too. The macOS
+/// build cannot catch that — `UIApplication` does not exist there, leaving the
+/// bodies empty — so it only surfaced on the first real iOS compile. Every caller
+/// is already a SwiftUI view body or action, which is main-actor anyway.
+@MainActor
 enum Platform {
     /// Opens the app's own page in the system Settings app.
     static func openAppSettings() {
@@ -97,6 +102,35 @@ extension View {
         self.listStyle(.insetGrouped)
         #else
         self.listStyle(.inset)
+        #endif
+    }
+
+    /// Lets a downward swipe dismiss the keyboard. iOS-only.
+    @ViewBuilder
+    func scrollDismissesKeyboardInteractively() -> some View {
+        #if os(iOS)
+        self.scrollDismissesKeyboard(.interactively)
+        #else
+        self
+        #endif
+    }
+
+    /// Adds a "Done" button above the keyboard while a field is focused.
+    ///
+    /// Without it, a form whose primary action sits below the keyboard has no
+    /// obvious way out for someone who does not think to swipe.
+    @ViewBuilder
+    func keyboardDoneButton(isFocused: Bool, dismiss: @escaping () -> Void) -> some View {
+        #if os(iOS)
+        self.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done", action: dismiss)
+                    .fontWeight(.semibold)
+            }
+        }
+        #else
+        self
         #endif
     }
 }
