@@ -1,0 +1,80 @@
+# XcodeGen specification for the Companion iOS app target.
+#
+# The .xcodeproj is generated rather than committed. Generating it means the
+# project file is produced by a tool that is known to be correct, rather than
+# hand-edited — and it keeps merge conflicts out of a 3,000-line pbxproj.
+#
+# Regenerate with:  make xcodeproj      (or: xcodegen generate)
+# Install XcodeGen: brew install xcodegen
+#
+# Everything except the app entry point lives in the Swift package in this same
+# directory, which the app target consumes as a local package dependency. That
+# is what allows `swift build` and `swift test` to verify the domain and UI code
+# without Xcode.
+
+name: Companion
+options:
+  bundleIdPrefix: com.companion
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    # Warnings are worth reading, so the project does not bury them.
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+
+packages:
+  Companion:
+    path: .
+
+targets:
+  Companion:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/Companion
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: Companion
+        product: CompanionCore
+      - package: Companion
+        product: CompanionUI
+    info:
+      path: Sources/Companion/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.companion.app
+        PRODUCT_NAME: Companion
+        INFOPLIST_FILE: Sources/Companion/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"          # iPhone only
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_STYLE: Automatic
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        # Required for background location. Xcode adds the matching entitlement
+        # automatically; the Info.plist declares the background mode itself.
+        ENABLE_BITCODE: NO
+
+schemes:
+  Companion:
+    build:
+      targets:
+        Companion: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      # The package's own tests run under `swift test`; this scheme exists so
+      # they can also be run from Xcode against the iOS simulator.
+      targets:
+        - CompanionCoreTests
+        - CompanionUITests

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en_GB</string>
+	<key>CFBundleDisplayName</key>
+	<string>Companion</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+
+	<!-- Shown in the system permission prompt the first time a walk is started.
+	     Kept factual: it says what the data draws and when it is collected. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Companion uses your location while you are recording a walk, to draw your route on the map and measure how far you went. Your routes are stored on this iPhone and are private by default.</string>
+
+	<!-- Recording continues with the screen locked, which is what "always" reads
+	     as to iOS even though the app only ever asks for "when in use". -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Companion keeps recording your walk when your iPhone is locked or in your pocket, so your route is not cut short. Location is only collected while a walk is running.</string>
+
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Companion asks for a photo when you add a picture of your dog or a photo to a walk. Nothing else in your library is read.</string>
+
+	<key>UIBackgroundModes</key>
+	<array>
+		<!-- Required so a walk keeps recording when the screen locks. Without
+		     it iOS suspends the app and the second half of every walk is lost. -->
+		<string>location</string>
+	</array>
+
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string></string>
+	</dict>
+
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+
+	<!-- iPhone, portrait first. Landscape and iPad are not MVP targets. -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>
