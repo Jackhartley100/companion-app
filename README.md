@@ -70,6 +70,69 @@ xcodebuild -scheme Companion -destination 'platform=iOS Simulator,name=iPhone 17
 Five XCUITest cases cover onboarding, control reachability, pause/resume, the
 two-tap finish, and a saved walk reaching history.
 
+### Running on your iPhone
+
+This is the only way to test what actually matters for a walking app: real GPS,
+and recording that survives the screen locking.
+
+**1. Find your Team ID.** Xcode → Settings → Accounts → add your Apple ID if it is
+not there → select it → the Team ID is the 10-character string beside your name.
+A **free Apple ID works** — it appears as "(Personal Team)".
+
+**2. Fill in `Signing.xcconfig`** (created for you by `make xcodeproj`, and
+gitignored so your Team ID never gets committed):
+
+```
+DEVELOPMENT_TEAM = ABCDE12345
+PRODUCT_BUNDLE_IDENTIFIER = com.jackhartley.companion
+```
+
+The bundle identifier must be globally unique, even on a free account. Change it
+if registration fails.
+
+**3. Connect the iPhone** by USB, unlock it, and tap **Trust** on the prompt.
+Check the Mac can see it:
+
+```bash
+make devices
+```
+
+**4. Build and run.** Open `Companion.xcodeproj`, pick your iPhone from the device
+menu, and press Run. From the command line instead:
+
+```bash
+make device
+```
+
+**5. Trust the developer certificate on the phone.** The first launch will refuse
+with "Untrusted Developer". On the iPhone: **Settings → General → VPN & Device
+Management → your Apple ID → Trust**. Then launch again.
+
+#### If you are using a free Apple ID
+
+- The app **stops working after 7 days** and must be rebuilt from Xcode. A paid
+  Apple Developer Program membership (£79/year) extends this to a year.
+- You are limited to 3 apps installed this way, and 10 new device registrations
+  per week.
+- Background location, MapKit and everything else in the MVP work fine on a free
+  account. Nothing here needs a paid entitlement.
+
+#### What to actually test outdoors
+
+The simulator cannot exercise any of these:
+
+- **Distance accuracy.** Walk a route you know the length of and compare.
+- **The screen locking mid-walk.** Lock the phone, keep walking, unlock. The route
+  must be continuous, with no gap — this is the `location` background mode and
+  `allowsBackgroundLocationUpdates` doing their job.
+- **Pausing for a genuine stop**, then resuming somewhere else. The polyline
+  should break rather than draw a straight line across ground you did not walk.
+- **Poor signal.** Under trees or between tall buildings, the status pill should
+  drop to "Weak signal" and recording should continue rather than fail.
+- **Battery cost** over an hour.
+- **Readability in daylight**, one-handed, holding a lead.
+- **Haptics** on start, pause, resume and finish.
+
 ### Recording a walk in the Simulator
 
 The Simulator has no GPS. Two options:

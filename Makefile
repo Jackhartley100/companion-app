@@ -1,4 +1,4 @@
-.PHONY: build test lint xcodeproj clean check
+.PHONY: build test lint xcodeproj clean check devices device
 
 # Builds and tests the domain and UI packages for the host platform.
 # This is what runs without Xcode installed — see README.md.
@@ -21,9 +21,22 @@ check:
 xcodeproj:
 	@command -v xcodegen >/dev/null 2>&1 || { \
 		echo "xcodegen is not installed. Run: brew install xcodegen"; exit 1; }
+	@test -f Signing.xcconfig || { \
+		cp Signing.example.xcconfig Signing.xcconfig; \
+		echo "Created Signing.xcconfig — set DEVELOPMENT_TEAM in it to run on a device."; }
 	xcodegen generate
 	@echo "Generated Companion.xcodeproj — open it with Xcode."
 
 clean:
 	swift package clean
 	rm -rf .build Companion.xcodeproj
+
+# Lists iPhones this Mac can see. The device must be unlocked and trusted.
+devices:
+	@xcrun devicectl list devices 2>/dev/null || echo "No devices found."
+
+# Builds and installs on a connected iPhone. Requires DEVELOPMENT_TEAM in
+# Signing.xcconfig — see README "Running on your iPhone".
+device: xcodeproj
+	xcodebuild -scheme Companion -destination 'generic/platform=iOS' \
+		-allowProvisioningUpdates build

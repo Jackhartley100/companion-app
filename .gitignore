@@ -19,3 +19,6 @@ DerivedData/
 # Secrets — nothing here should ever be committed
 *.xcconfig.local
 .env
+
+# Local signing settings — contains your Team ID, never commit
+Signing.xcconfig

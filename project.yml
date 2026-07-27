@@ -52,9 +52,14 @@ targets:
     # the given path, overwriting the hand-written one — including every usage
     # description and the background-location mode. Pointing INFOPLIST_FILE at
     # the committed file uses it as-is.
+    # Team ID and bundle identifier come from the gitignored Signing.xcconfig,
+    # so regenerating the project never wipes signing settings — and a Team ID
+    # never lands in the repository.
+    configFiles:
+      Debug: Signing.xcconfig
+      Release: Signing.xcconfig
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.companion.app
         PRODUCT_NAME: Companion
         INFOPLIST_FILE: Sources/Companion/Info.plist
         TARGETED_DEVICE_FAMILY: "1"          # iPhone only
@@ -76,7 +81,7 @@ targets:
       - target: Companion
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.companion.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: $(PRODUCT_BUNDLE_IDENTIFIER).uitests
         TEST_TARGET_NAME: Companion
         CODE_SIGN_STYLE: Automatic
         # The test bundle has no hand-written plist, so let Xcode synthesise one.

@@ -1,0 +1,22 @@
+// Local signing settings. Copy to `Signing.xcconfig` and fill in.
+//
+//   cp Signing.example.xcconfig Signing.xcconfig
+//
+// `Signing.xcconfig` is gitignored, so your Team ID never reaches the repository.
+// `make xcodeproj` copies this file for you if it is missing.
+//
+// Nothing here is needed to build for the simulator. It is only required to run
+// on a physical iPhone.
+
+// Your Apple Developer Team ID.
+//
+// Find it in Xcode → Settings → Accounts → select your Apple ID → the "Team"
+// column shows the 10-character ID. A free Apple ID works — it gets a
+// "(Personal Team)" entry.
+//
+// Leave empty for simulator-only builds.
+DEVELOPMENT_TEAM =
+
+// Must be globally unique across the App Store, even for a free account.
+// Use your own reverse-DNS prefix rather than the placeholder default.
+PRODUCT_BUNDLE_IDENTIFIER = com.jackhartley.companion
