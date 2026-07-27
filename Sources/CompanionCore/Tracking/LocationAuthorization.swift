@@ -57,19 +57,40 @@ public protocol LocationPermissionProviding: Sendable {
     ///   session is active. Asking for "always" would grant the app more than it
     ///   needs and is harder to justify to the owner.
     func requestWhenInUseAuthorization() async -> LocationAuthorizationStatus
+
+    /// A single current-location fix, or `nil` when one could not be obtained.
+    ///
+    /// - Important: Never requests permission. Companion's permission strategy
+    ///   is to ask only when a walk is starting, so a caller like Explore must
+    ///   not become a second place that triggers the system prompt — it can
+    ///   only make use of authorisation a previous walk already obtained.
+    func currentLocation() async -> Coordinate?
 }
 
 /// A permission provider that returns a fixed answer. For previews and tests.
 public struct StubLocationPermissionProvider: LocationPermissionProviding {
     public let status: LocationAuthorizationStatus
     public let enabled: Bool
+    public let fixedLocation: Coordinate?
 
-    public init(status: LocationAuthorizationStatus = .whenInUse, enabled: Bool = true) {
+    public init(
+        status: LocationAuthorizationStatus = .whenInUse,
+        enabled: Bool = true,
+        fixedLocation: Coordinate? = nil
+    ) {
         self.status = status
         self.enabled = enabled
+        self.fixedLocation = fixedLocation
     }
 
     public func currentStatus() async -> LocationAuthorizationStatus { status }
     public func servicesEnabled() async -> Bool { enabled }
     public func requestWhenInUseAuthorization() async -> LocationAuthorizationStatus { status }
+
+    /// Mirrors the real source's contract: only answers once already
+    /// authorised, so a test that forgets to grant permission first is caught
+    /// rather than papered over by a stub that is more permissive than reality.
+    public func currentLocation() async -> Coordinate? {
+        status.isUsable ? fixedLocation : nil
+    }
 }

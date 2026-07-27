@@ -272,6 +272,31 @@ struct WalkJourneyTests {
         #expect(model.profile != nil)
     }
 
+    @Test("Signing out clears the profile, dogs and history and returns to onboarding")
+    func signOut() async {
+        let store = DemoDataProvider.store()
+        let model = makeModel(store: store)
+        await model.load()
+        #expect(model.hasCompletedOnboarding)
+        #expect(model.activities.isEmpty == false)
+
+        await model.signOut()
+
+        #expect(model.profile == nil)
+        #expect(model.dogs.isEmpty)
+        #expect(model.activities.isEmpty)
+        #expect(model.goals.isEmpty)
+        #expect(model.selectedDogID == nil)
+        #expect(model.hasCompletedOnboarding == false)
+
+        // The wipe reaches the store itself, not just the in-memory model — a
+        // second load (what relaunching the app does) must not resurrect it.
+        let reopened = makeModel(store: store)
+        await reopened.load()
+        #expect(reopened.hasCompletedOnboarding == false)
+        #expect(reopened.activeDogs.isEmpty)
+    }
+
     @Test("Archiving a dog hides it but keeps the walks")
     func archiveDog() async throws {
         let model = makeModel(store: DemoDataProvider.store())
@@ -324,6 +349,43 @@ struct WalkJourneyTests {
     }
 
     // MARK: Failure paths
+
+    @Test("Explore sorts places by distance once location is already authorised")
+    func exploreUsesCurrentLocationWhenAuthorised() async throws {
+        let richmondPark = Coordinate(latitude: 51.4425, longitude: -0.2735)
+        let model = AppModel(
+            environment: .preview(locationStatus: .whenInUse, currentLocation: richmondPark)
+        )
+        await model.load()
+
+        let fix = await model.environment.locationPermissions.currentLocation()
+        #expect(fix == richmondPark)
+
+        let places = try await model.environment.placeRepository.places(near: fix)
+        #expect(places.first?.name == "Richmond Park")
+    }
+
+    @Test("With no location permission yet, Explore falls back to the unsorted list")
+    func exploreWithoutPermissionGetsNoLocation() async throws {
+        let model = AppModel(
+            environment: .preview(
+                locationStatus: .notDetermined,
+                currentLocation: Coordinate(latitude: 51.4425, longitude: -0.2735)
+            )
+        )
+        await model.load()
+
+        // A location is configured on the stub, but permission was never
+        // granted — `currentLocation()` must still come back empty, exactly as
+        // it would from the real source. Explore has no other way to request
+        // authorisation itself, so this is what stands between it and silently
+        // prompting for location outside the walk-starting flow.
+        let fix = await model.environment.locationPermissions.currentLocation()
+        #expect(fix == nil)
+
+        let places = try await model.environment.placeRepository.places(near: fix)
+        #expect(places.map(\.id) == SamplePlaceRepository.samples.map(\.id))
+    }
 
     @Test("A denied permission produces an actionable failure, not a crash")
     func permissionDenied() async {

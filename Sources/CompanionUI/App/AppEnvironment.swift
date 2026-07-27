@@ -99,6 +99,7 @@ public final class AppEnvironment {
     public static func preview(
         store: InMemoryStore = DemoDataProvider.store(),
         locationStatus: LocationAuthorizationStatus = .whenInUse,
+        currentLocation: Coordinate? = nil,
         simulatedRoute: [RoutePoint]? = SyntheticRoute.loop(pointCount: 200),
         subscription: SubscriptionStatus = .free
     ) -> AppEnvironment {
@@ -120,7 +121,10 @@ public final class AppEnvironment {
                 script: simulatedRoute ?? [],
                 interval: .milliseconds(400)
             ),
-            locationPermissions: StubLocationPermissionProvider(status: locationStatus)
+            locationPermissions: StubLocationPermissionProvider(
+                status: locationStatus,
+                fixedLocation: currentLocation
+            )
         )
     }
 

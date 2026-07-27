@@ -11,7 +11,6 @@ public struct StoredImage<Placeholder: View>: View {
     private let placeholder: Placeholder
 
     @State private var loaded: Image?
-    @State private var didAttempt = false
 
     public init(
         reference: String?,
@@ -32,8 +31,12 @@ public struct StoredImage<Placeholder: View>: View {
             }
         }
         .task(id: reference) {
-            guard let reference, !didAttempt || loaded == nil else { return }
-            didAttempt = true
+            // `loaded` is `@State`, so it survives this task restarting — without
+            // clearing it first, switching to a dog with no photo (or one whose
+            // photo fails to load) would keep showing the previous dog's image
+            // instead of falling back to the placeholder.
+            loaded = nil
+            guard let reference else { return }
             guard let data = try? await imageStore.data(for: reference) else { return }
             loaded = Image(data: data)
         }

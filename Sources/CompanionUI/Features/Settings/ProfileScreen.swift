@@ -8,6 +8,7 @@ struct ProfileScreen: View {
 
     @State private var isAddingDog = false
     @State private var showsDeleteHistoryConfirmation = false
+    @State private var showsSignOutConfirmation = false
     @State private var subscription: SubscriptionStatus = .free
     @State private var locationStatus: LocationAuthorizationStatus = .notDetermined
 
@@ -23,6 +24,7 @@ struct ProfileScreen: View {
                 privacySection
                 integrationsSection
                 supportSection
+                signOutSection
             }
             .navigationTitle("Profile")
             .largeNavigationTitle()
@@ -59,6 +61,25 @@ struct ProfileScreen: View {
             } message: {
                 Text("Every walk and route will be permanently removed from this iPhone. "
                      + "Your dogs and settings are kept. This cannot be undone.")
+            }
+            .confirmationDialog(
+                "Sign out of Companion?",
+                isPresented: $showsSignOutConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Sign Out", role: .destructive) {
+                    Task {
+                        Haptics.play(.destructiveConfirmed)
+                        await model.signOut()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(
+                    "Companion doesn't have accounts that sync between devices yet, so signing "
+                    + "out removes your profile, dogs and activity history from this iPhone. "
+                    + "This cannot be undone."
+                )
             }
             .task {
                 subscription = await model.environment.subscriptions.status()
@@ -147,55 +168,108 @@ struct ProfileScreen: View {
 
     private var permissionsSection: some View {
         Section {
+            // The whole row opens Settings, regardless of the current status —
+            // that is the only lever the app actually has. Previously this only
+            // appeared once permission had been denied, so a row already showing
+            // "Allowed" had nothing tappable in it at all.
             permissionRow(
                 title: "Location",
                 detail: locationDetail,
                 isGranted: locationStatus.isUsable,
-                showsSettingsLink: !locationStatus.isUsable && locationStatus != .notDetermined
+                action: { Platform.openAppSettings() }
             )
-            permissionRow(
-                title: "Notifications",
-                detail: "Reminders are not enabled in this version.",
-                isGranted: false,
-                showsSettingsLink: false
-            )
+            notificationsRow
             permissionRow(
                 title: "Photos",
                 detail: "Asked for when you add a photo to a dog or a walk.",
-                isGranted: true,
-                showsSettingsLink: false
+                isGranted: nil,
+                action: nil
             )
         } header: {
             Text("Permissions")
         } footer: {
-            Text("Location is used only while a walk is being recorded.")
+            Text("Location is used only while a walk is being recorded. Tap it to review or change the setting.")
         }
     }
 
+    /// - Parameter isGranted: `nil` when granted/not-granted does not apply —
+    ///   Photos uses the modern picker, which needs no system permission the
+    ///   app can check, so a checkmark there would just be a hardcoded guess.
+    /// - Parameter action: `nil` for a row with nothing to do when tapped.
     private func permissionRow(
         title: String,
         detail: String,
-        isGranted: Bool,
-        showsSettingsLink: Bool
+        isGranted: Bool?,
+        action: (() -> Void)?
     ) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Space.xs) {
-            HStack {
-                Text(title)
-                Spacer()
-                Image(systemName: isGranted ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isGranted ? Theme.Colour.success : Theme.Colour.secondaryText)
+        Group {
+            if let action {
+                Button(action: action) {
+                    permissionRowContent(title: title, detail: detail, isGranted: isGranted, showsChevron: true)
+                }
+                .buttonStyle(.plain)
+            } else {
+                permissionRowContent(title: title, detail: detail, isGranted: isGranted, showsChevron: false)
             }
-            Text(detail)
-                .font(.caption)
-                .foregroundStyle(Theme.Colour.secondaryText)
-            if showsSettingsLink {
-                Button("Open Settings") { Platform.openAppSettings() }
-                    .font(.caption.weight(.medium))
+        }
+    }
+
+    private func permissionRowContent(
+        title: String,
+        detail: String,
+        isGranted: Bool?,
+        showsChevron: Bool
+    ) -> some View {
+        HStack(alignment: .top, spacing: Theme.Space.s) {
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                HStack {
+                    Text(title)
+                    Spacer()
+                    if let isGranted {
+                        Image(systemName: isGranted ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(isGranted ? Theme.Colour.success : Theme.Colour.secondaryText)
+                    }
+                }
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(Theme.Colour.secondaryText)
+            }
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.Colour.secondaryText.opacity(0.6))
+            }
+        }
+        .padding(.vertical, Theme.Space.xxs)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(isGranted == true ? "Allowed" : (isGranted == false ? "Not allowed" : ""))
+        .accessibilityHint(showsChevron ? "Opens Settings" : "")
+    }
+
+    /// Notifications is not `permissionRow` — there is genuinely nothing to
+    /// enable yet (`InactiveNotificationService` schedules nothing), so it gets
+    /// the same "Coming soon" treatment as the sign-in options in onboarding
+    /// rather than a checkmark that implies a real, checkable permission.
+    private var notificationsRow: some View {
+        HStack(alignment: .top, spacing: Theme.Space.s) {
+            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                HStack {
+                    Text("Notifications")
+                    Spacer()
+                    Text("Coming soon")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, Theme.Space.s)
+                        .padding(.vertical, Theme.Space.xxs)
+                        .background(Theme.Colour.fill, in: Capsule())
+                }
+                Text("Reminders are not built yet, so there is nothing to turn on here.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.Colour.secondaryText)
             }
         }
         .padding(.vertical, Theme.Space.xxs)
         .accessibilityElement(children: .combine)
-        .accessibilityValue(isGranted ? "Allowed" : "Not allowed")
     }
 
     private var locationDetail: String {
@@ -285,6 +359,23 @@ struct ProfileScreen: View {
                 Text("\(Theme.Brand.name) — development build")
                 VeterinaryDisclaimer()
             }
+        }
+    }
+
+    private var signOutSection: some View {
+        Section {
+            Button(
+                "Sign Out",
+                systemImage: "rectangle.portrait.and.arrow.right",
+                role: .destructive
+            ) {
+                showsSignOutConfirmation = true
+            }
+        } footer: {
+            Text(
+                "Companion doesn't have accounts that sync yet, so signing out removes "
+                + "your profile, dogs and activity history from this iPhone."
+            )
         }
     }
 

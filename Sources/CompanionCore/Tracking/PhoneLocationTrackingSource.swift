@@ -29,6 +29,7 @@ public final class PhoneLocationTrackingSource: NSObject, ActivityTrackingSource
     private var isSessionActive = false
     private var lastReportedAccuracy: AccuracyLevel = .unusable
     private var hasSignalledInterruption = false
+    private var currentLocationContinuation: CheckedContinuation<Coordinate?, Never>?
 
     public override init() {
         manager = CLLocationManager()
@@ -136,6 +137,29 @@ extension PhoneLocationTrackingSource: LocationPermissionProviding {
         }
     }
 
+    public func currentLocation() async -> Coordinate? {
+        guard LocationAuthorizationStatus(manager.authorizationStatus).isUsable else { return nil }
+        // `requestLocation()` and `startUpdatingLocation()` are not meant to run
+        // together on one manager. A walk recording blocks the rest of the app
+        // behind a full-screen cover, so this should not be reachable mid-session
+        // in practice, but it costs nothing to make it impossible.
+        guard !isSessionActive else { return nil }
+        guard currentLocationContinuation == nil else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            currentLocationContinuation = continuation
+            manager.requestLocation()
+        }
+    }
+
+    /// Resolves a pending `currentLocation()` call, if there is one. Safe to
+    /// call unconditionally — a no-op when nothing is waiting.
+    private func resolveCurrentLocationRequest(with coordinate: Coordinate?) {
+        guard let continuation = currentLocationContinuation else { return }
+        currentLocationContinuation = nil
+        continuation.resume(returning: coordinate)
+    }
+
     private func resolveAuthorisationRequests(with status: LocationAuthorizationStatus) {
         let pending = authorisationContinuations
         authorisationContinuations = []
@@ -168,14 +192,22 @@ extension PhoneLocationTrackingSource: CLLocationManagerDelegate {
     ) {
         let points = locations.map(RoutePoint.init)
         Task { @MainActor [weak self] in
-            self?.handle(points)
+            guard let self else { return }
+            self.resolveCurrentLocationRequest(with: points.first?.coordinate)
+            self.handle(points)
         }
     }
 
     public nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         let code = (error as? CLError)?.code
         Task { @MainActor [weak self] in
-            guard let self, self.isSessionActive else { return }
+            guard let self else { return }
+            // A one-shot `requestLocation()` call fails through this same
+            // delegate method (typically `.locationUnknown` on timeout). Without
+            // resolving it here, a failed request would leave its caller
+            // suspended forever rather than falling back gracefully.
+            self.resolveCurrentLocationRequest(with: nil)
+            guard self.isSessionActive else { return }
             switch code {
             case .denied:
                 self.continuation?.yield(.interrupted(.authorisationLost))

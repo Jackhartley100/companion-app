@@ -123,50 +123,96 @@ struct WelcomeScreen: View {
     let signIn: () -> Void
 
     var body: some View {
-        VStack(spacing: Theme.Space.xl) {
-            Spacer(minLength: Theme.Space.xl)
+        VStack(spacing: 0) {
+            WelcomeHero()
+                .frame(height: 340)
+                .ignoresSafeArea(edges: .top)
 
-            WelcomeArtwork()
-                .frame(maxHeight: 240)
+            VStack(spacing: Theme.Space.xl) {
+                VStack(spacing: Theme.Space.m) {
+                    Text(Theme.Brand.name)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Theme.Colour.accent)
+                    Text(Theme.Brand.tagline)
+                        .font(.largeTitle.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(Theme.Brand.supportingLine)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.Colour.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
-            VStack(spacing: Theme.Space.m) {
-                Text(Theme.Brand.name)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Theme.Colour.accent)
-                Text(Theme.Brand.tagline)
-                    .font(.largeTitle.weight(.bold))
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(Theme.Brand.supportingLine)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.Colour.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+
+                VStack(spacing: Theme.Space.s) {
+                    PrimaryButton("Get Started", action: getStarted)
+                    Button("I already have an account", action: signIn)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.Colour.secondaryText)
+                        .frame(minHeight: Theme.minimumTapTarget)
+                }
             }
+            .padding(Theme.Space.xl)
+            .padding(.top, Theme.Space.l)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(Theme.Colour.background)
+    }
+}
 
-            Spacer(minLength: 0)
+/// The photograph at the top of Welcome, dissolving into the page background.
+///
+/// Falls back to an abstract composition when the photograph is not present —
+/// which is always true outside the compiled app, since the asset catalogue
+/// lives in the `Companion` target and is invisible to `swift build`, `swift
+/// test`, and previews run from this package. That keeps the package
+/// self-contained rather than depending on the app target to compile at all.
+struct WelcomeHero: View {
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                if let photograph = Image.namedIfAvailable("WelcomeArtwork") {
+                    photograph
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .accessibilityHidden(true)
+                } else {
+                    WelcomeArtwork()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                }
 
-            VStack(spacing: Theme.Space.s) {
-                PrimaryButton("Get Started", action: getStarted)
-                Button("I already have an account", action: signIn)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.Colour.secondaryText)
-                    .frame(minHeight: Theme.minimumTapTarget)
+                // Dissolves the photo into the page background rather than
+                // hard-cropping it, so the join is invisible in both
+                // appearances. Three stops rather than a straight two-colour
+                // gradient: a flat fade from clear to opaque reads as a visible
+                // band where it crosses the photo's own midtones, but easing
+                // through a half-opacity stop blends with whatever the photo is
+                // doing underneath first.
+                LinearGradient(
+                    stops: [
+                        .init(color: Theme.Colour.background.opacity(0), location: 0),
+                        .init(color: Theme.Colour.background.opacity(0.5), location: 0.6),
+                        .init(color: Theme.Colour.background, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: geometry.size.height * 0.5)
+                .allowsHitTesting(false)
             }
         }
-        .padding(Theme.Space.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.Colour.background)
     }
 }
 
 /// An abstract composition standing in for photography.
 ///
-/// Drawn in code rather than shipped as an image so the package has no binary
-/// assets to compile, and so it adapts to light and dark without two exports.
-// TODO: Replace with commissioned or licensed photography of a dog and owner
-// before submission. The layout reserves the same space, so this is a swap of
-// this view only.
+/// Used only as a fallback for contexts that cannot see the app's asset
+/// catalogue — see `WelcomeHero`. Adapts to light and dark with no separate
+/// export, which the real photograph cannot do.
 struct WelcomeArtwork: View {
     var body: some View {
         ZStack {

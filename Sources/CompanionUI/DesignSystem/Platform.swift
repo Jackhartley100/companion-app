@@ -64,6 +64,29 @@ func adaptiveColor(light: (Double, Double, Double), dark: (Double, Double, Doubl
     #endif
 }
 
+extension Image {
+    /// Loads an image from the app's asset catalogue by name, or `nil` if it is
+    /// not there.
+    ///
+    /// The catalogue lives in the `Companion` app target
+    /// (`Sources/Companion/Assets.xcassets`), not in this package, so it is only
+    /// present when the real app is running. `swift build` / `swift test` and any
+    /// preview host outside the app target will not find it — this returns `nil`
+    /// in those cases rather than crashing, so callers fall back to a
+    /// programmatic view instead of shipping with a blank space.
+    static func namedIfAvailable(_ name: String) -> Image? {
+        #if canImport(UIKit)
+        guard let image = UIImage(named: name) else { return nil }
+        return Image(uiImage: image)
+        #elseif canImport(AppKit)
+        guard let image = NSImage(named: name) else { return nil }
+        return Image(nsImage: image)
+        #else
+        return nil
+        #endif
+    }
+}
+
 extension View {
     /// `navigationBarTitleDisplayMode` where it exists, and nothing where it
     /// does not, so feature code can state the intent unconditionally.

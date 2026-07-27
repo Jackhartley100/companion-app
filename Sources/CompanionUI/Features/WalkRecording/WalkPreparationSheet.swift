@@ -53,50 +53,19 @@ struct WalkPreparationSheet: View {
 
     private var form: some View {
         Form {
-            Section {
-                ForEach(model.activeDogs) { dog in
-                    Button {
-                        toggle(dog)
-                    } label: {
-                        HStack(spacing: Theme.Space.m) {
-                            DogAvatar(
-                                dog: dog,
-                                size: 40,
-                                imageStore: model.environment.imageStore,
-                                isSelected: selectedDogIDs.contains(dog.id)
-                            )
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(dog.name).font(.body)
-                                Text(dog.breedDescription)
-                                    .font(.caption)
-                                    .foregroundStyle(Theme.Colour.secondaryText)
-                            }
-                            Spacer()
-                            Image(
-                                systemName: selectedDogIDs.contains(dog.id)
-                                    ? "checkmark.circle.fill"
-                                    : "circle"
-                            )
-                            .foregroundStyle(
-                                selectedDogIDs.contains(dog.id)
-                                    ? Theme.Colour.accent
-                                    : Theme.Colour.secondaryText
-                            )
-                        }
-                        .frame(minHeight: Theme.minimumTapTarget)
-                        .contentShape(Rectangle())
+            // A single-dog owner is never asked to choose — there is nothing to
+            // decide, and showing a one-row picker just to confirm the obvious
+            // is friction the "fast interaction" principle rules out.
+            if model.activeDogs.count > 1 {
+                multiDogSection
+            } else if let onlyDog = model.activeDogs.first {
+                Section {
+                    HStack(spacing: Theme.Space.m) {
+                        DogAvatar(dog: onlyDog, size: 40, imageStore: model.environment.imageStore)
+                        Text("Walking with \(onlyDog.name)")
+                            .font(.body)
                     }
-                    .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(
-                        selectedDogIDs.contains(dog.id) ? [.isButton, .isSelected] : .isButton
-                    )
-                }
-            } header: {
-                Text("Who is coming?")
-            } footer: {
-                if selectedDogIDs.count > 1 {
-                    Text("This walk will count towards each of their goals.")
                 }
             }
 
@@ -133,6 +102,63 @@ struct WalkPreparationSheet: View {
                         .foregroundStyle(Theme.Colour.warning)
                 }
             }
+        }
+    }
+
+    /// The picker shown when there is a genuine choice to make.
+    ///
+    /// Uses square, checkbox-style marks rather than the circular ones used
+    /// elsewhere for single selection (the dog switcher on Today, for
+    /// instance) — a circle reads as "pick one" by a well-worn convention, and
+    /// that mismatch was the actual reason multi-dog selection went unnoticed
+    /// even though the underlying toggle already supported it.
+    private var multiDogSection: some View {
+        Section {
+            ForEach(model.activeDogs) { dog in
+                Button {
+                    toggle(dog)
+                } label: {
+                    HStack(spacing: Theme.Space.m) {
+                        DogAvatar(
+                            dog: dog,
+                            size: 40,
+                            imageStore: model.environment.imageStore,
+                            isSelected: selectedDogIDs.contains(dog.id)
+                        )
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(dog.name).font(.body)
+                            Text(dog.breedDescription)
+                                .font(.caption)
+                                .foregroundStyle(Theme.Colour.secondaryText)
+                        }
+                        Spacer()
+                        Image(
+                            systemName: selectedDogIDs.contains(dog.id)
+                                ? "checkmark.square.fill"
+                                : "square"
+                        )
+                        .foregroundStyle(
+                            selectedDogIDs.contains(dog.id)
+                                ? Theme.Colour.accent
+                                : Theme.Colour.secondaryText
+                        )
+                    }
+                    .frame(minHeight: Theme.minimumTapTarget)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(
+                    selectedDogIDs.contains(dog.id) ? [.isButton, .isSelected] : .isButton
+                )
+            }
+        } header: {
+            Text("Who's coming?")
+        } footer: {
+            Text(
+                "Choose one or more dogs. A walk with more than one counts towards "
+                + "each of their goals."
+            )
         }
     }
 

@@ -20,6 +20,9 @@ struct ExploreScreen: View {
     @State private var isMapMode = false
     @State private var camera: MapCameraPosition = .automatic
     @State private var isLoading = true
+    /// Set only when permission was already granted from a previous walk —
+    /// Explore never triggers the system prompt itself.
+    @State private var userLocation: Coordinate?
 
     var body: some View {
         NavigationStack {
@@ -70,6 +73,11 @@ struct ExploreScreen: View {
         List {
             Section {
                 sampleDataNotice
+                if userLocation != nil {
+                    Label("Sorted by distance from your current location", systemImage: "location.fill")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.Colour.secondaryText)
+                }
             }
 
             Section {
@@ -78,7 +86,11 @@ struct ExploreScreen: View {
 
             ForEach(filtered) { place in
                 NavigationLink(value: place) {
-                    PlaceRow(place: place, isSaved: savedIDs.contains(place.id))
+                    PlaceRow(
+                        place: place,
+                        isSaved: savedIDs.contains(place.id),
+                        distanceText: distanceText(to: place)
+                    )
                 }
             }
         }
@@ -91,6 +103,9 @@ struct ExploreScreen: View {
                 Marker(place.name, systemImage: place.category.symbolName, coordinate: place.coordinate.clCoordinate)
                     .tint(Theme.Colour.accent)
             }
+            if userLocation != nil {
+                UserAnnotation()
+            }
         }
         .overlay(alignment: .top) {
             sampleDataNotice
@@ -99,6 +114,11 @@ struct ExploreScreen: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
                 .padding(Theme.Space.l)
         }
+    }
+
+    private func distanceText(to place: Place) -> String? {
+        guard let userLocation else { return nil }
+        return formatters.distance(userLocation.distance(to: place.coordinate)) + " away"
     }
 
     /// Says plainly that these are examples. Showing unverified sample content as
@@ -142,7 +162,8 @@ struct ExploreScreen: View {
 
     private func load() async {
         isLoading = true
-        places = (try? await model.environment.placeRepository.places(near: nil)) ?? []
+        userLocation = await model.environment.locationPermissions.currentLocation()
+        places = (try? await model.environment.placeRepository.places(near: userLocation)) ?? []
         savedIDs = (try? await model.environment.placeRepository.savedPlaceIDs()) ?? []
         camera = .fitting(places.map(\.coordinate))
         isLoading = false
@@ -181,6 +202,7 @@ struct CategoryChip: View {
 struct PlaceRow: View {
     let place: Place
     let isSaved: Bool
+    var distanceText: String?
 
     var body: some View {
         HStack(spacing: Theme.Space.m) {
@@ -194,9 +216,13 @@ struct PlaceRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(place.name).font(.headline)
-                Text(place.category.displayName)
-                    .font(.caption)
-                    .foregroundStyle(Theme.Colour.secondaryText)
+                Text(
+                    [place.category.displayName, distanceText]
+                        .compactMap { $0 }
+                        .joined(separator: " · ")
+                )
+                .font(.caption)
+                .foregroundStyle(Theme.Colour.secondaryText)
             }
 
             Spacer()
@@ -209,7 +235,11 @@ struct PlaceRow: View {
         }
         .padding(.vertical, Theme.Space.xxs)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(place.name), \(place.category.displayName)\(isSaved ? ", saved" : "")")
+        .accessibilityLabel(
+            [place.name, place.category.displayName, distanceText, isSaved ? "saved" : nil]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+        )
     }
 }
 

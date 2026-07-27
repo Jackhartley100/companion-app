@@ -292,6 +292,34 @@ public final class AppModel {
         (try? await environment.activityRepository.route(for: activity.id)) ?? []
     }
 
+    /// Signs out and returns the app to onboarding.
+    ///
+    /// There is no backend yet — `AuthenticationProvider.localDevice.isRecoverable`
+    /// is `false` — so a local-only account has nothing to sign back into
+    /// elsewhere. The only honest behaviour is a full local reset: profile, dogs
+    /// and every walk are removed from this device, exactly as a fresh install
+    /// would be. The confirmation shown before calling this must say so plainly,
+    /// since it is destructive and irreversible.
+    public func signOut() async {
+        do {
+            try await environment.profileRepository.deleteEverything()
+            try? await environment.authentication.signOut()
+            profile = nil
+            dogs = []
+            activities = []
+            goals = []
+            unlocks = []
+            // Set after `profile = nil` so the `didSet` below finds nothing to
+            // persist, rather than racing to write a dog ID onto a profile that
+            // no longer exists.
+            selectedDogID = nil
+            recorder.reset()
+            loadState = .loaded
+        } catch {
+            banner = BannerMessage(text: message(for: error), style: .warning)
+        }
+    }
+
     public func acknowledgeUnlocks(_ unlocks: [AchievementUnlock]) async {
         guard !unlocks.isEmpty else { return }
         try? await environment.achievementRepository.acknowledge(ids: unlocks.map(\.id))
