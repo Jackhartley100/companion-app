@@ -15,12 +15,24 @@ keep a lifetime of adventures with your dog in one place.
 | `CompanionUI` (design system, every screen, previews) | ✅ Builds |
 | `Companion` (the iOS app target) | ✅ Builds clean for iOS, zero warnings |
 | Running in the simulator | ✅ Verified — onboarding, live recording, pause/resume, save, history |
-| Running on a physical iPhone | ⚠️ Not yet tried |
+| Running on a physical iPhone | ✅ Verified on a real walk — see below |
 
-Built and verified against **Xcode 26.6 / iOS 26.5 simulator**. A walk has been
-recorded end to end with simulated GPS: the route draws on the map, distance and
-pace update live, pausing breaks the polyline, and the saved walk appears in
-history.
+Built against **Xcode 26.6**, and **recorded on a real walk** on an iPhone 16 Plus
+(free personal provisioning).
+
+Confirmed on device:
+
+- Recording survives the screen locking — the route comes back unbroken, which is
+  the background-location mode doing its job and the single thing most likely to
+  have been silently wrong
+- Distance matches a known route
+- The two-tap finish is comfortable one-handed with a lead in the other
+- Haptics fire on start, finish and the rest
+- Locale defaults to kilometres and kilograms in the UK, unlike the US simulator
+
+Not yet exercised on device: **pausing mid-walk**, and **degraded GPS** (no weak
+signal encountered). Both are covered by unit and UI tests, so the logic is
+tested — but neither has met real hardware.
 
 Everything except a ~50-line app entry point lives in a multi-platform Swift
 package that also builds for macOS, so the domain layer and the whole UI can be
@@ -352,11 +364,14 @@ The product therefore never claims otherwise:
 
 ## Known limitations
 
-1. **Never run on a physical iPhone.** Simulator only, so real GPS accuracy,
-   background recording with the screen locked, and haptics are all unverified.
-2. **The two-tap finish window is 4 seconds.** Comfortable for a deliberate double
-   tap, but worth revisiting after real outdoor use — gloves and a lead may
-   argue for longer.
+1. **Pause and degraded GPS are untested on device.** Both work in the simulator
+   and are covered by unit and UI tests, but neither has been exercised outdoors.
+   Pausing is the higher risk of the two: it is the one path where the app stops
+   and restarts the flow of accepted fixes, and a mistake there corrupts the
+   distance of an otherwise good walk.
+2. **Battery cost over a long walk has not been measured.** A two-hour hike at
+   `kCLLocationAccuracyBestForNavigation` is the realistic worst case and has not
+   been tried.
 3. **Persistence is JSON files, not SwiftData.** The SwiftData macro plugin ships
    with Xcode and cannot run under the Command Line Tools, so a SwiftData model
    layer could not have been compiled or tested here. The file store is a real,
