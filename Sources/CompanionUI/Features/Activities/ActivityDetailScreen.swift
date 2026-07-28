@@ -14,6 +14,7 @@ struct ActivityDetailScreen: View {
     @State private var isEditing = false
     @State private var showsDeleteConfirmation = false
     @State private var viewingPhoto: PhotoViewerTarget?
+    @State private var showsStoryShare = false
 
     /// The current record, so edits made on this screen show immediately.
     private var current: WalkActivity {
@@ -43,11 +44,9 @@ struct ActivityDetailScreen: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Edit", systemImage: "pencil") { isEditing = true }
-                    // Text only, deliberately. Sharing an image of the route
-                    // would publish where the walk started and finished — usually
-                    // the owner's home. `RoutePrivacy` exists to trim those ends;
-                    // until the shared image is actually rendered through it,
-                    // there is no map to share.
+                    Button("Share as Story", systemImage: "photo.on.rectangle.angled") {
+                        showsStoryShare = true
+                    }
                     ShareLink(item: shareText) {
                         Label("Share summary", systemImage: "square.and.arrow.up")
                     }
@@ -63,6 +62,15 @@ struct ActivityDetailScreen: View {
             ActivityEditSheet(activity: current)
                 .environment(model)
                 .environment(\.formatters, formatters)
+        }
+        .sheet(isPresented: $showsStoryShare) {
+            StorySharePreviewScreen(
+                activity: current,
+                dogNames: model.dogs(for: current).map(\.name),
+                route: route,
+                imageStore: model.environment.imageStore,
+                formatters: formatters
+            )
         }
         .confirmationDialog(
             "Delete this walk?",

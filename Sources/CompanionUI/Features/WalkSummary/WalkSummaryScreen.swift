@@ -17,9 +17,11 @@ struct WalkSummaryScreen: View {
     @State private var notes: String = ""
     @State private var visibility: ActivityVisibility = .privateOnly
     @State private var route: [Coordinate] = []
+    @State private var routePoints: [RoutePoint] = []
     @State private var imageReferences: [String] = []
     @State private var didPopulate = false
     @State private var isSaving = false
+    @State private var showsStoryShare = false
 
     var body: some View {
         NavigationStack {
@@ -40,12 +42,30 @@ struct WalkSummaryScreen: View {
             .navigationTitle("Walk saved")
             .compactNavigationTitle()
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Share as Story", systemImage: "photo.on.rectangle.angled") {
+                        showsStoryShare = true
+                    }
+                    .labelStyle(.iconOnly)
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { Task { await saveAndClose() } }
                         .fontWeight(.semibold)
                         .disabled(isSaving)
                 }
             }
+        }
+        .sheet(isPresented: $showsStoryShare) {
+            // Carries whatever photo was just added in `photosSection` above,
+            // even though that edit is not persisted until "Done" — sharing a
+            // walk should not require saving it first.
+            StorySharePreviewScreen(
+                activity: { var a = activity; a.imageReferences = imageReferences; return a }(),
+                dogNames: model.dogs(for: activity).map(\.name),
+                route: routePoints,
+                imageStore: model.environment.imageStore,
+                formatters: formatters
+            )
         }
         .task {
             guard !didPopulate else { return }
@@ -54,7 +74,8 @@ struct WalkSummaryScreen: View {
             notes = activity.notes ?? ""
             visibility = activity.visibility
             imageReferences = activity.imageReferences
-            route = await model.route(for: activity).map(\.coordinate)
+            routePoints = await model.route(for: activity)
+            route = routePoints.map(\.coordinate)
             await model.acknowledgeUnlocks(model.recorder.pendingUnlocks)
         }
     }

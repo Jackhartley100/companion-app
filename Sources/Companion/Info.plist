@@ -37,6 +37,11 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Companion opens the camera when you take a photo during or after a walk. Photos are stored on this iPhone and are never uploaded.</string>
 
+	<!-- Covers the system share sheet's own "Save Image" action when sharing a
+	     walk story card. Companion never reads or browses the library from here. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Companion can save a walk's story card to your Photos when you choose to save it from the share sheet.</string>
+
 	<key>UIBackgroundModes</key>
 	<array>
 		<!-- Required so a walk keeps recording when the screen locks. Without

@@ -26,6 +26,7 @@ struct DogProfileScreen: View {
             VStack(alignment: .leading, spacing: Theme.Space.xl) {
                 header
                 lifetimeCard
+                timelineLink
                 goalSection
                 trendSection
                 achievementSection
@@ -143,6 +144,35 @@ struct DogProfileScreen: View {
                 }
             }
         }
+    }
+
+    private var timelineLink: some View {
+        NavigationLink {
+            DogHealthTimelineScreen(dog: current)
+        } label: {
+            Card {
+                HStack(spacing: Theme.Space.m) {
+                    Image(systemName: "heart.text.square.fill")
+                        .font(.title3)
+                        .foregroundStyle(Theme.Colour.accent)
+                        .frame(width: 36, height: 36)
+                        .background(Theme.Colour.accent.opacity(0.12), in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("What walking has added up to")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.Colour.primaryText)
+                        Text("See \(current.name)'s activity timeline")
+                            .font(.caption)
+                            .foregroundStyle(Theme.Colour.secondaryText)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.Colour.secondaryText)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
