@@ -205,16 +205,32 @@ public struct PermissionExplanationView: View {
         self.onSkip = onSkip
     }
 
-    /// The location explanation, which every walk depends on.
+    /// Which feature is asking, so the explanation says what is actually about
+    /// to happen rather than one fixed story for every caller.
+    ///
+    /// Explore reads location once, on demand, to sort a list — it does not
+    /// record anything. Reusing the walk-recording copy there would describe a
+    /// route being drawn and saved, which is not what would happen, and an
+    /// explanation screen that gets the "why" wrong undermines the point of
+    /// having one at all.
+    public enum LocationContext {
+        case startingWalk
+        case exploring
+    }
+
+    /// The location explanation, shown before the walk-preparation sheet or
+    /// Explore ask the system for permission.
     public static func location(
+        context: LocationContext = .startingWalk,
         onAllow: @escaping () -> Void,
         onSkip: (() -> Void)? = nil
     ) -> PermissionExplanationView {
-        PermissionExplanationView(
-            symbolName: "location.circle.fill",
-            title: "Companion needs your location",
-            summary: "It is what draws your route on the map and measures how far you walked.",
-            points: [
+        let summary: String
+        let points: [Point]
+        switch context {
+        case .startingWalk:
+            summary = "It is what draws your route on the map and measures how far you walked."
+            points = [
                 Point(
                     symbolName: "map",
                     title: "Only while you are recording",
@@ -230,7 +246,35 @@ public struct PermissionExplanationView: View {
                     title: "Private by default",
                     detail: "New walks are private, and you can delete any of them at any time."
                 )
-            ],
+            ]
+        case .exploring:
+            summary = "It lets Companion sort dog-friendly places by how close they are to you."
+            points = [
+                Point(
+                    symbolName: "location",
+                    title: "Used for this one check",
+                    detail: "Companion reads your location to sort this list, then stops. "
+                        + "It is not tracked in the background."
+                ),
+                Point(
+                    symbolName: "iphone",
+                    title: "Not saved anywhere",
+                    detail: "This check is not stored or uploaded — nothing about it stays "
+                        + "after the list is sorted."
+                ),
+                Point(
+                    symbolName: "hand.raised",
+                    title: "You're in control",
+                    detail: "You can turn this off any time in Settings, and the list still works "
+                        + "without it — just unsorted."
+                )
+            ]
+        }
+        return PermissionExplanationView(
+            symbolName: "location.circle.fill",
+            title: "Companion needs your location",
+            summary: summary,
+            points: points,
             allowTitle: "Continue",
             onAllow: onAllow,
             onSkip: onSkip
@@ -354,7 +398,10 @@ struct StateViews_Previews: PreviewProvider {
             .previewDisplayName("Error — save failed")
 
         PermissionExplanationView.location(onAllow: {}, onSkip: {})
-            .previewDisplayName("Permission explanation")
+            .previewDisplayName("Permission explanation — starting a walk")
+
+        PermissionExplanationView.location(context: .exploring, onAllow: {}, onSkip: {})
+            .previewDisplayName("Permission explanation — exploring")
 
         PermissionExplanationView.location(onAllow: {}, onSkip: {})
             .preferredColorScheme(.dark)

@@ -20,14 +20,40 @@ struct ExploreScreen: View {
     @State private var isMapMode = false
     @State private var camera: MapCameraPosition = .automatic
     @State private var isLoading = true
-    /// Set only when permission was already granted from a previous walk —
-    /// Explore never triggers the system prompt itself.
     @State private var userLocation: Coordinate?
+    /// Read alongside `userLocation` so the invite below can tell "not asked
+    /// yet" apart from "asked and declined" — the invite only makes sense in
+    /// the first case, and re-showing it after a decline would be exactly the
+    /// nagging the product avoids.
+    @State private var locationStatus: LocationAuthorizationStatus = .notDetermined
+    @State private var showsPermissionExplanation = false
 
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading {
+                // Shown as a screen swap, not a nested `.sheet` — `ExploreScreen`
+                // already sits inside `MainTabView`, which has three of its own
+                // sheets/covers on the TabView itself (walk preparation, the
+                // active walk, the walk summary). Adding a fourth presentation
+                // one level deeper, nested inside a tab's own content, made its
+                // buttons visually correct but silently untappable — matching
+                // the exact working pattern `WalkPreparationSheet` already uses
+                // for this same view (a plain if/else within one NavigationStack)
+                // avoids the extra presentation layer entirely.
+                if showsPermissionExplanation {
+                    PermissionExplanationView.location(
+                        context: .exploring,
+                        onAllow: {
+                            Task {
+                                locationStatus = await model.environment.locationPermissions
+                                    .requestWhenInUseAuthorization()
+                                showsPermissionExplanation = false
+                                await refreshLocation()
+                            }
+                        },
+                        onSkip: { showsPermissionExplanation = false }
+                    )
+                } else if isLoading {
                     LoadingStateView(message: "Finding places")
                 } else if filtered.isEmpty {
                     EmptyStateView(
@@ -43,17 +69,19 @@ struct ExploreScreen: View {
                     listView
                 }
             }
-            .navigationTitle("Explore")
+            .navigationTitle(showsPermissionExplanation ? "" : "Explore")
             .largeNavigationTitle()
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isMapMode.toggle()
-                    } label: {
-                        Label(
-                            isMapMode ? "Show list" : "Show map",
-                            systemImage: isMapMode ? "list.bullet" : "map"
-                        )
+                if !showsPermissionExplanation {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            isMapMode.toggle()
+                        } label: {
+                            Label(
+                                isMapMode ? "Show list" : "Show map",
+                                systemImage: isMapMode ? "list.bullet" : "map"
+                            )
+                        }
                     }
                 }
             }
@@ -73,11 +101,7 @@ struct ExploreScreen: View {
         List {
             Section {
                 sampleDataNotice
-                if userLocation != nil {
-                    Label("Sorted by distance from your current location", systemImage: "location.fill")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.Colour.secondaryText)
-                }
+                locationNotice
             }
 
             Section {
@@ -108,11 +132,34 @@ struct ExploreScreen: View {
             }
         }
         .overlay(alignment: .top) {
-            sampleDataNotice
-                .padding(Theme.Space.m)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
-                .padding(Theme.Space.l)
+            VStack(alignment: .leading, spacing: Theme.Space.s) {
+                sampleDataNotice
+                locationNotice
+            }
+            .padding(Theme.Space.m)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+            .padding(Theme.Space.l)
+        }
+    }
+
+    /// Reports the current state and, when nothing has been decided yet,
+    /// invites the owner to turn location on — Explore is now a second place
+    /// (besides starting a walk) that may ask, so the invitation has to be
+    /// clear about what it is asking for, not just a bare status line.
+    @ViewBuilder
+    private var locationNotice: some View {
+        if userLocation != nil {
+            Label("Sorted by distance from your current location", systemImage: "location.fill")
+                .font(.footnote)
+                .foregroundStyle(Theme.Colour.secondaryText)
+        } else if locationStatus == .notDetermined {
+            Button {
+                showsPermissionExplanation = true
+            } label: {
+                Label("Turn on location to sort by distance from you", systemImage: "location")
+                    .font(.footnote.weight(.medium))
+            }
         }
     }
 
@@ -121,18 +168,26 @@ struct ExploreScreen: View {
         return formatters.distance(userLocation.distance(to: place.coordinate)) + " away"
     }
 
-    /// Says plainly that these are examples. Showing unverified sample content as
-    /// though it were checked, live data would be the kind of quiet dishonesty
-    /// this product avoids — someone could drive to a beach on the strength of it.
+    /// Says plainly where the places came from. Sample content is labelled as
+    /// examples; live results credit Apple Maps and are honest that
+    /// dog-friendliness has not been checked — someone could drive to a beach
+    /// on the strength of this screen.
     private var sampleDataNotice: some View {
         Label(
-            "These are example places included with the app. They have not been checked "
-            + "and opening times, access and rules may be out of date.",
+            showsSampleContent
+                ? "These are example places included with the app. They have not been checked "
+                    + "and opening times, access and rules may be out of date."
+                : "Places near you, found via Apple Maps. Dog access rules have not been "
+                    + "verified — check before you travel.",
             systemImage: "info.circle"
         )
         .font(.footnote)
         .foregroundStyle(Theme.Colour.secondaryText)
         .accessibilityElement(children: .combine)
+    }
+
+    private var showsSampleContent: Bool {
+        places.contains { $0.source.isDemonstrationContent }
     }
 
     private var categoryPicker: some View {
@@ -162,11 +217,21 @@ struct ExploreScreen: View {
 
     private func load() async {
         isLoading = true
+        locationStatus = await model.environment.locationPermissions.currentStatus()
         userLocation = await model.environment.locationPermissions.currentLocation()
         places = (try? await model.environment.placeRepository.places(near: userLocation)) ?? []
         savedIDs = (try? await model.environment.placeRepository.savedPlaceIDs()) ?? []
         camera = .fitting(places.map(\.coordinate))
         isLoading = false
+    }
+
+    /// Re-sorts against a freshly granted (or freshly declined) permission,
+    /// without the full loading spinner `load()` shows on first appearance —
+    /// that flash would read as a glitch immediately after the owner just
+    /// tapped "Allow".
+    private func refreshLocation() async {
+        userLocation = await model.environment.locationPermissions.currentLocation()
+        places = (try? await model.environment.placeRepository.places(near: userLocation)) ?? []
     }
 
     private func toggleSaved(_ place: Place) async {

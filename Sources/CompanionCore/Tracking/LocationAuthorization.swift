@@ -60,10 +60,12 @@ public protocol LocationPermissionProviding: Sendable {
 
     /// A single current-location fix, or `nil` when one could not be obtained.
     ///
-    /// - Important: Never requests permission. Companion's permission strategy
-    ///   is to ask only when a walk is starting, so a caller like Explore must
-    ///   not become a second place that triggers the system prompt — it can
-    ///   only make use of authorisation a previous walk already obtained.
+    /// - Important: Never requests permission itself — it only reports what is
+    ///   already there. Explore and the walk-preparation flow each request
+    ///   permission through their own contextual UI (an explanation screen
+    ///   before the system prompt) and then call this; folding a request in
+    ///   here would let some future caller trigger the system prompt with no
+    ///   explanation on screen at all.
     func currentLocation() async -> Coordinate?
 }
 

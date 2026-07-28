@@ -24,7 +24,7 @@
 	<!-- Shown in the system permission prompt the first time a walk is started.
 	     Kept factual: it says what the data draws and when it is collected. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Companion uses your location while you are recording a walk, to draw your route on the map and measure how far you went. Your routes are stored on this iPhone and are private by default.</string>
+	<string>Companion uses your location while you are recording a walk, to draw your route on the map and measure how far you went, and in Explore to find dog-friendly places near you. Your routes are stored on this iPhone and are private by default.</string>
 
 	<!-- Recording continues with the screen locked, which is what "always" reads
 	     as to iOS even though the app only ever asks for "when in use". -->

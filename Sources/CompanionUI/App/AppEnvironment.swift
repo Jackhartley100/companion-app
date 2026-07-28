@@ -78,7 +78,7 @@ public final class AppEnvironment {
             activityRepository: FileActivityRepository(store: store),
             goalRepository: FileGoalRepository(store: store),
             achievementRepository: FileAchievementRepository(store: store),
-            placeRepository: SamplePlaceRepository(store: store),
+            placeRepository: LocalSearchPlaceRepository(store: store),
             sessionSnapshotStore: FileSessionSnapshotStore(store: store),
             imageStore: FileImageStore(store: store),
             authentication: LocalAuthenticationService(profileRepository: profileRepository),

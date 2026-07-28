@@ -377,9 +377,12 @@ struct WalkJourneyTests {
 
         // A location is configured on the stub, but permission was never
         // granted — `currentLocation()` must still come back empty, exactly as
-        // it would from the real source. Explore has no other way to request
-        // authorisation itself, so this is what stands between it and silently
-        // prompting for location outside the walk-starting flow.
+        // it would from the real source. Explore may now invite the owner to
+        // grant permission itself, but that goes through
+        // `requestWhenInUseAuthorization()` behind its own explanation screen;
+        // `currentLocation()` staying inert without a prior grant is what stops
+        // any caller — Explore included — from getting a fix with no
+        // authorisation and no explanation on screen at all.
         let fix = await model.environment.locationPermissions.currentLocation()
         #expect(fix == nil)
 
