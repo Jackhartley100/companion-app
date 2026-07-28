@@ -1,0 +1,9 @@
+Name (30 chars max, must be unique store-wide):
+Companion: Dog Walk Tracker
+
+Fallbacks if taken:
+Companion – Dog Walks
+Companion Dog Walk Log
+
+Subtitle (30 chars max, shown under the name):
+Track every walk together

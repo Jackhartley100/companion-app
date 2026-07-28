@@ -1,0 +1,22 @@
+Notes for App Review:
+
+No account or sign-in is required — the app is fully usable immediately after
+onboarding (enter a name and add a dog).
+
+BACKGROUND LOCATION: The app declares the "location" background mode. It is
+used solely so that an actively recording dog walk keeps tracking when the
+screen locks or the phone goes in a pocket. The app requests only
+"When In Use" authorisation; background updates run exclusively during a walk
+the user has explicitly started, and stop when the walk is finished or
+discarded. Location is stored on-device only and never transmitted.
+
+To test walk recording: complete onboarding, tap "Start Walk" on the Today
+tab, grant location when asked, and use the simulator/device location. Finish
+the walk to see the summary and statistics.
+
+The Explore tab uses MapKit local search to list dog-friendly places near the
+user's current location, sorted by distance. Results are labelled as coming
+from Apple Maps, with a caution that dog-access rules are unverified.
+
+All data is stored locally; the app has no server, no analytics SDK and no
+third-party dependencies.

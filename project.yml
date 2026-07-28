@@ -67,7 +67,7 @@ targets:
         SUPPORTS_MACCATALYST: NO
         CODE_SIGN_STYLE: Automatic
         CURRENT_PROJECT_VERSION: 1
-        MARKETING_VERSION: 0.1.0
+        MARKETING_VERSION: 1.0.0
         # Required for background location. Xcode adds the matching entitlement
         # automatically; the Info.plist declares the background mode itself.
         ENABLE_BITCODE: NO
