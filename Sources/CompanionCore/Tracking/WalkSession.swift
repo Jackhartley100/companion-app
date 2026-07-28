@@ -31,6 +31,9 @@ public struct WalkSession: Codable, Sendable, Equatable {
     /// Only fixes that passed `RouteFilter`.
     public private(set) var points: [RoutePoint]
     public private(set) var pauses: [PauseInterval]
+    /// References into `ImageStore` for photos taken during this walk, in the
+    /// order they were captured.
+    public private(set) var imageReferences: [String]
     /// Running total in metres, accumulated incrementally so that appending a
     /// point stays O(1) rather than re-walking the whole route.
     public private(set) var distance: Double
@@ -54,6 +57,7 @@ public struct WalkSession: Codable, Sendable, Equatable {
         self.title = title
         self.points = []
         self.pauses = []
+        self.imageReferences = []
         self.distance = 0
         self.recordingSource = recordingSource
         self.startsNewSegment = false
@@ -80,6 +84,16 @@ public struct WalkSession: Codable, Sendable, Equatable {
             distance += last.coordinate.distance(to: point.coordinate)
         }
         points.append(point)
+    }
+
+    /// Attaches a photo already written to `ImageStore`. Ordering is preserved
+    /// so the walk photos gallery can show them in the sequence they were taken.
+    public mutating func addPhoto(_ reference: String) {
+        imageReferences.append(reference)
+    }
+
+    public mutating func removePhoto(_ reference: String) {
+        imageReferences.removeAll { $0 == reference }
     }
 
     public mutating func pause(at date: Date) {
@@ -163,6 +177,7 @@ public struct WalkSession: Codable, Sendable, Equatable {
             elevationGain: points.elevationGain(),
             dogIDs: dogIDs,
             ownerID: ownerID,
+            imageReferences: imageReferences,
             visibility: visibility,
             recordingSource: recordingSource,
             routePointCount: points.count,

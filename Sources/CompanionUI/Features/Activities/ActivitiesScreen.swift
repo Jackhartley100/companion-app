@@ -31,15 +31,27 @@ struct ActivitiesScreen: View {
             .navigationTitle("Activities")
             .largeNavigationTitle()
             .searchable(text: $searchText, prompt: "Search walks")
-            .toolbar { filterMenu }
+            .toolbar { photosButton; filterMenu }
             .navigationDestination(for: WalkActivity.self) { ActivityDetailScreen(activity: $0) }
             .navigationDestination(for: StatisticsRoute.self) { _ in
                 StatisticsScreen(dogID: dogFilter)
+            }
+            .navigationDestination(for: PhotosRoute.self) { _ in
+                WalkPhotosGalleryScreen()
             }
         }
     }
 
     struct StatisticsRoute: Hashable {}
+    struct PhotosRoute: Hashable {}
+
+    private var photosButton: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            NavigationLink(value: PhotosRoute()) {
+                Label("Walk Photos", systemImage: "photo.on.rectangle.angled")
+            }
+        }
+    }
 
     @ViewBuilder
     private var content: some View {

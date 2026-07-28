@@ -34,6 +34,9 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Companion asks for a photo when you add a picture of your dog or a photo to a walk. Nothing else in your library is read.</string>
 
+	<key>NSCameraUsageDescription</key>
+	<string>Companion opens the camera when you take a photo during or after a walk. Photos are stored on this iPhone and are never uploaded.</string>
+
 	<key>UIBackgroundModes</key>
 	<array>
 		<!-- Required so a walk keeps recording when the screen locks. Without

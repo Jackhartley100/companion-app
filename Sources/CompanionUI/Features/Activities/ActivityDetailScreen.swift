@@ -13,6 +13,7 @@ struct ActivityDetailScreen: View {
     @State private var isLoadingRoute = true
     @State private var isEditing = false
     @State private var showsDeleteConfirmation = false
+    @State private var viewingPhoto: PhotoViewerTarget?
 
     /// The current record, so edits made on this screen show immediately.
     private var current: WalkActivity {
@@ -25,6 +26,7 @@ struct ActivityDetailScreen: View {
                 mapSection
                 headerSection
                 metricsSection
+                photosSection
                 if let notes = current.notes, !notes.isEmpty {
                     notesSection(notes)
                 }
@@ -82,6 +84,40 @@ struct ActivityDetailScreen: View {
         .task {
             route = await model.route(for: activity)
             isLoadingRoute = false
+        }
+        .sheet(item: $viewingPhoto) { target in
+            WalkPhotoViewerScreen(
+                references: current.imageReferences,
+                startingAt: target.id,
+                imageStore: model.environment.imageStore,
+                fixedCaption: current.title
+            )
+        }
+    }
+
+    private var photosSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            SectionHeader("Photos")
+            WalkPhotoStrip(
+                references: current.imageReferences,
+                imageStore: model.environment.imageStore,
+                canRemove: true,
+                onAdd: { data in
+                    guard let reference = try? await model.environment.imageStore.store(data) else { return }
+                    var updated = current
+                    updated.imageReferences.append(reference)
+                    await model.updateActivity(updated)
+                },
+                onRemove: { reference in
+                    Task {
+                        var updated = current
+                        updated.imageReferences.removeAll { $0 == reference }
+                        await model.updateActivity(updated)
+                        try? await model.environment.imageStore.delete(reference: reference)
+                    }
+                },
+                onTap: { reference in viewingPhoto = PhotoViewerTarget(reference) }
+            )
         }
     }
 

@@ -239,6 +239,8 @@ struct ActiveWalkScreen: View {
                         }
                     }
                 }
+
+                photoButton
             }
 
             HoldToConfirmButton("Finish Walk", armedTitle: "Tap again to finish") {
@@ -256,6 +258,43 @@ struct ActiveWalkScreen: View {
                 .frame(minHeight: Theme.minimumTapTarget)
             }
         }
+    }
+
+    /// Styled to match `SecondaryButton` so it reads as one control row with
+    /// Pause/Resume, but built on `AddWalkPhotoButton`'s own menu rather than a
+    /// plain action — this is the one control on the screen with a choice
+    /// behind it (camera or library).
+    private var photoButton: some View {
+        AddWalkPhotoButton(label: photoButtonLabel, symbolName: "camera.fill") { data in
+            if let reference = try? await model.environment.imageStore.store(data) {
+                await recorder.addPhoto(reference)
+                Haptics.play(.selectionChanged)
+            }
+        }
+        .frame(width: 64, height: Theme.minimumTapTarget)
+        .foregroundStyle(Theme.Colour.accent)
+        .background(Theme.Colour.accent.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+        .labelStyle(.iconOnly)
+        .font(.body.weight(.medium))
+        .overlay(alignment: .topTrailing) {
+            let count = recorder.currentImageReferences.count
+            if count > 0 {
+                Text("\(count)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(Theme.Colour.secondaryAccent, in: Circle())
+                    .offset(x: 6, y: -6)
+                    .accessibilityHidden(true)
+            }
+        }
+        .accessibilityLabel(photoButtonLabel)
+    }
+
+    private var photoButtonLabel: String {
+        let count = recorder.currentImageReferences.count
+        return count > 0 ? "Photos, \(count) taken" : "Add Photo"
     }
 
     private func failureView(_ failure: RecordingFailure) -> some View {

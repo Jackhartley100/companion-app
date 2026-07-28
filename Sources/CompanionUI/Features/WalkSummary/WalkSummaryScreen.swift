@@ -17,6 +17,7 @@ struct WalkSummaryScreen: View {
     @State private var notes: String = ""
     @State private var visibility: ActivityVisibility = .privateOnly
     @State private var route: [Coordinate] = []
+    @State private var imageReferences: [String] = []
     @State private var didPopulate = false
     @State private var isSaving = false
 
@@ -27,6 +28,7 @@ struct WalkSummaryScreen: View {
                     celebration
                     RoutePreviewCard(coordinates: route, height: 220)
                     metricsCard
+                    photosSection
                     unlockedAchievements
                     goalContribution
                     detailsCard
@@ -51,8 +53,29 @@ struct WalkSummaryScreen: View {
             title = activity.title
             notes = activity.notes ?? ""
             visibility = activity.visibility
+            imageReferences = activity.imageReferences
             route = await model.route(for: activity).map(\.coordinate)
             await model.acknowledgeUnlocks(model.recorder.pendingUnlocks)
+        }
+    }
+
+    private var photosSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            SectionHeader("Photos")
+            WalkPhotoStrip(
+                references: imageReferences,
+                imageStore: model.environment.imageStore,
+                canRemove: true,
+                onAdd: { data in
+                    if let reference = try? await model.environment.imageStore.store(data) {
+                        imageReferences.append(reference)
+                    }
+                },
+                onRemove: { reference in
+                    imageReferences.removeAll { $0 == reference }
+                    Task { try? await model.environment.imageStore.delete(reference: reference) }
+                }
+            )
         }
     }
 
@@ -229,6 +252,7 @@ struct WalkSummaryScreen: View {
             ? nil
             : notes.trimmingCharacters(in: .whitespacesAndNewlines)
         updated.visibility = visibility
+        updated.imageReferences = imageReferences
 
         await model.updateActivity(updated)
         isSaving = false

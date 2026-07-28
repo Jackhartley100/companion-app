@@ -68,6 +68,9 @@ public final class WalkRecorder {
     /// live rate is shown as pace or as speed.
     public var currentActivityType: ActivityType? { session?.activityType }
 
+    /// Photos taken so far on the walk in progress, for a live thumbnail count.
+    public var currentImageReferences: [String] { session?.imageReferences ?? [] }
+
     public init(
         source: any ActivityTrackingSource,
         activityRepository: any ActivityRepository,
@@ -180,6 +183,17 @@ public final class WalkRecorder {
         analytics.track(.walkStarted(activityType: activityType.rawValue, dogCount: dogIDs.count))
         startTicking()
         startSnapshotting()
+    }
+
+    /// Attaches a photo (already stored via `ImageStore`) to the walk in
+    /// progress, and snapshots immediately rather than waiting for the next
+    /// thirty-second tick — a photo taken seconds before a crash is exactly the
+    /// kind of thing worth not losing.
+    public func addPhoto(_ reference: String) async {
+        guard var session else { return }
+        session.addPhoto(reference)
+        self.session = session
+        await persistSnapshot()
     }
 
     public func pause() async {
