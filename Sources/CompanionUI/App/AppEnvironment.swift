@@ -91,6 +91,46 @@ public final class AppEnvironment {
         )
     }
 
+    /// A live environment rooted at a separate store and pre-filled with
+    /// demonstration content, for capturing screenshots.
+    ///
+    /// The separate `storeName` is what keeps demo content out of the owner's
+    /// real data — a filesystem boundary rather than a flag a bug could flip.
+    /// Seeding is skipped when the demo store already has a profile, so
+    /// relaunching does not pile up duplicate history.
+    public static func demonstration() async throws -> AppEnvironment {
+        let environment = try live(storeName: "CompanionDemo")
+        if try await environment.profileRepository.load() == nil {
+            try await environment.seedDemonstrationContent()
+        }
+        return environment
+    }
+
+    private func seedDemonstrationContent() async throws {
+        try await profileRepository.save(DemoDataProvider.profile())
+        for dog in DemoDataProvider.dogs {
+            try await dogRepository.save(dog)
+        }
+        for goal in DemoDataProvider.goals() {
+            try await goalRepository.save(goal)
+        }
+        // History runs up to today rather than the provider's fixed reference
+        // date, so the screens show live totals and a goal in progress instead
+        // of a week of zeroes.
+        //
+        // Only the newest walks get their full route written. Those are the
+        // ones anyone opens from the top of the history list, and the list and
+        // charts draw the stored `routePreview` regardless — so writing points
+        // for all eight weeks would slow first launch for nothing visible.
+        let history = DemoDataProvider.activitiesWithRoutes(endingAt: Date())
+        for (index, entry) in history.enumerated() {
+            try await activityRepository.save(
+                entry.activity,
+                route: index < 12 ? entry.route : nil
+            )
+        }
+    }
+
     /// An environment backed entirely by memory, for previews and tests.
     ///
     /// - Parameter simulatedRoute: When supplied, the tracking source replays it

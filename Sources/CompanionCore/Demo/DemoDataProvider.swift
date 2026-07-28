@@ -93,7 +93,20 @@ public enum DemoDataProvider {
         weeks: Int = 8,
         calendar: Calendar = .current
     ) -> [WalkActivity] {
-        var activities: [WalkActivity] = []
+        activitiesWithRoutes(endingAt: endDate, weeks: weeks, calendar: calendar).map(\.activity)
+    }
+
+    /// The same history, paired with the full route behind each walk.
+    ///
+    /// Demo mode uses this so that opening a walk shows a drawn route rather
+    /// than an empty map; the plain `activities` above drops the points, which
+    /// is all previews and tests need.
+    public static func activitiesWithRoutes(
+        endingAt endDate: Date = referenceDate,
+        weeks: Int = 8,
+        calendar: Calendar = .current
+    ) -> [(activity: WalkActivity, route: [RoutePoint])] {
+        var activities: [(activity: WalkActivity, route: [RoutePoint])] = []
         // A fixed seed keeps demo content identical between launches, so a
         // screenshot taken today matches one taken next week.
         var seed: UInt64 = 20_260_727
@@ -138,18 +151,23 @@ public enum DemoDataProvider {
                 let withBailey = next() > 0.65
                 let dogIDs = withBailey ? [roxyID, baileyID] : [roxyID]
 
-                let route = SyntheticRoute.loop(
+                // Roughly one fix every 12 m, matching what a real recording
+                // logs. Sparser than that and consecutive points sit further
+                // apart than the map's 60 m gap threshold, so a continuous walk
+                // would be drawn as a row of disconnected fragments.
+                let route = SyntheticRoute.wander(
                     centre: Coordinate(
                         latitude: 51.5074 + (next() - 0.5) * 0.02,
                         longitude: -0.1278 + (next() - 0.5) * 0.02
                     ),
                     radiusMetres: distance / (2 * .pi),
-                    pointCount: 48,
+                    pointCount: max(60, Int(distance / 12)),
+                    variation: next(),
                     startingAt: start
                 )
 
-                activities.append(
-                    WalkActivity(
+                activities.append((
+                    activity: WalkActivity(
                         title: WalkTitleGenerator(calendar: calendar)
                             .title(for: start, activityType: isLongWalk ? .hike : .walk),
                         activityType: isLongWalk ? .hike : .walk,
@@ -167,11 +185,12 @@ public enum DemoDataProvider {
                         routePreview: RoutePreview.sample(from: route),
                         createdAt: start,
                         updatedAt: start
-                    )
-                )
+                    ),
+                    route: route
+                ))
             }
         }
-        return activities.sorted { $0.startDate > $1.startDate }
+        return activities.sorted { $0.activity.startDate > $1.activity.startDate }
     }
 
     /// A ready-made in-memory store for previews.

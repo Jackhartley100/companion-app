@@ -149,6 +149,56 @@ public enum SyntheticRoute {
         }
     }
 
+    /// A closed loop that wanders like a real walk rather than tracing a circle.
+    ///
+    /// `loop` is a perfect circle because tests use it for known distances, but
+    /// a perfect circle is instantly recognisable as fake in a route preview.
+    /// This modulates the radius with a few harmonics and offsets the centre,
+    /// which gives the lopsided, meandering shape a real walk leaves behind.
+    /// `variation` seeds the harmonics, so each walk gets its own shape and the
+    /// same walk always looks the same.
+    public static func wander(
+        centre: Coordinate = Coordinate(latitude: 51.5074, longitude: -0.1278),
+        radiusMetres: Double = 250,
+        pointCount: Int = 120,
+        variation: Double = 0,
+        startingAt start: Date = Date(),
+        secondsBetweenPoints: TimeInterval = 5,
+        horizontalAccuracy: Double = 5
+    ) -> [RoutePoint] {
+        let metresPerDegreeLatitude = 111_320.0
+        let metresPerDegreeLongitude = metresPerDegreeLatitude * cos(centre.latitude * .pi / 180)
+
+        // Phases derived from `variation` rather than randomness, so a preview
+        // drawn today matches one drawn next week.
+        let phase1 = variation * 6.28
+        let phase2 = variation * 3.11 + 1.7
+        let phase3 = variation * 9.42 + 0.4
+
+        return (0..<pointCount).map { index in
+            let angle = (Double(index) / Double(pointCount)) * 2 * .pi
+            // Harmonics on a closed loop: whole-number multiples of the angle
+            // meet up again at the end, so the route closes cleanly.
+            let wobble = 1
+                + 0.34 * sin(angle * 2 + phase1)
+                + 0.19 * sin(angle * 3 + phase2)
+                + 0.11 * sin(angle * 5 + phase3)
+            let radius = radiusMetres * wobble
+            let latitude = centre.latitude + (radius * sin(angle)) / metresPerDegreeLatitude
+            let longitude = centre.longitude
+                + (radius * 1.15 * cos(angle)) / metresPerDegreeLongitude
+            return RoutePoint(
+                coordinate: Coordinate(latitude: latitude, longitude: longitude),
+                altitude: 20 + 6 * sin(angle * 2 + phase1),
+                horizontalAccuracy: horizontalAccuracy,
+                verticalAccuracy: 8,
+                speed: 1.35,
+                course: (angle * 180 / .pi).truncatingRemainder(dividingBy: 360),
+                timestamp: start.addingTimeInterval(Double(index) * secondsBetweenPoints)
+            )
+        }
+    }
+
     /// A straight line, useful when a test needs a known exact distance.
     public static func line(
         from start: Coordinate = Coordinate(latitude: 51.5074, longitude: -0.1278),

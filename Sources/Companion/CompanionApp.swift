@@ -35,6 +35,21 @@ struct CompanionApp: App {
     }
 
     private func makeEnvironment() {
+        // Demo mode fills a separate store with example history so screenshots
+        // show a used app rather than empty states. It cannot touch real data:
+        // the store lives in its own directory.
+        if ProcessInfo.processInfo.arguments.contains("-companion.demoMode") {
+            Task {
+                do {
+                    startupError = nil
+                    environment = try await AppEnvironment.demonstration()
+                } catch {
+                    startupError = error.localizedDescription
+                }
+            }
+            return
+        }
+
         do {
             startupError = nil
             let environment = try AppEnvironment.live()
