@@ -48,6 +48,29 @@ public enum Theme {
 
         public static let destructive = Color.red
 
+        /// Achievement tier colours. The one deliberately brighter, more
+        /// saturated corner of an otherwise restrained palette — a badge is a
+        /// small celebration, and small celebrations are exactly where a
+        /// premium app can afford a flash of colour without stopping feeling
+        /// premium.
+        public enum Tier {
+            public static let bronze = adaptiveColor(
+                light: (0.70, 0.42, 0.24),
+                dark: (0.80, 0.52, 0.32)
+            )
+            public static let silver = adaptiveColor(
+                light: (0.52, 0.55, 0.58),
+                dark: (0.72, 0.75, 0.78)
+            )
+            /// Shares the brand's warm sand rather than a generic yellow, so
+            /// gold reads as "this app's gold" rather than a stock icon colour.
+            public static let gold = Theme.Colour.secondaryAccent
+            public static let platinum = adaptiveColor(
+                light: (0.29, 0.56, 0.72),
+                dark: (0.52, 0.78, 0.92)
+            )
+        }
+
         #if canImport(UIKit)
         public static let background = Color(uiColor: .systemBackground)
         public static let groupedBackground = Color(uiColor: .systemGroupedBackground)

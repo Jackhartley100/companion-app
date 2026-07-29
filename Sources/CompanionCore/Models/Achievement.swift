@@ -22,6 +22,61 @@ public enum AchievementRule: Codable, Sendable, Hashable {
     case goalCompleted(period: GoalPeriod)
 }
 
+/// How hard an achievement is, within its family.
+///
+/// Purely presentational — the unlock rule itself is what decides when
+/// something is earned. Tiers exist so a badge can be coloured (bronze,
+/// silver, gold, platinum) and so families like "Walks Together" read as a
+/// progression rather than a shelf of unrelated stickers.
+public enum AchievementTier: String, Codable, Sendable, CaseIterable, Equatable, Comparable {
+    case bronze
+    case silver
+    case gold
+    case platinum
+
+    public var displayName: String {
+        switch self {
+        case .bronze: "Bronze"
+        case .silver: "Silver"
+        case .gold: "Gold"
+        case .platinum: "Platinum"
+        }
+    }
+
+    private var rank: Int {
+        switch self {
+        case .bronze: 0
+        case .silver: 1
+        case .gold: 2
+        case .platinum: 3
+        }
+    }
+
+    public static func < (lhs: AchievementTier, rhs: AchievementTier) -> Bool {
+        lhs.rank < rhs.rank
+    }
+}
+
+/// The family an achievement belongs to, for grouping the trophy case into
+/// sections rather than one flat, uncategorised grid.
+public enum AchievementCategory: String, Codable, Sendable, CaseIterable, Hashable {
+    case walks
+    case distance
+    case streaks
+    case timing
+    case goals
+
+    public var displayName: String {
+        switch self {
+        case .walks: "Walks Together"
+        case .distance: "Distance"
+        case .streaks: "Streaks"
+        case .timing: "Time of Day"
+        case .goals: "Goals"
+        }
+    }
+}
+
 /// The definition of an achievement. Immutable reference data.
 public struct AchievementDefinition: Identifiable, Codable, Sendable, Hashable {
     /// Stable identifier persisted in unlocks — never change an existing value.
@@ -30,13 +85,25 @@ public struct AchievementDefinition: Identifiable, Codable, Sendable, Hashable {
     public let details: String
     public let symbolName: String
     public let rule: AchievementRule
+    public let tier: AchievementTier
+    public let category: AchievementCategory
 
-    public init(id: String, title: String, details: String, symbolName: String, rule: AchievementRule) {
+    public init(
+        id: String,
+        title: String,
+        details: String,
+        symbolName: String,
+        rule: AchievementRule,
+        tier: AchievementTier,
+        category: AchievementCategory
+    ) {
         self.id = id
         self.title = title
         self.details = details
         self.symbolName = symbolName
         self.rule = rule
+        self.tier = tier
+        self.category = category
     }
 }
 
