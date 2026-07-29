@@ -63,7 +63,7 @@ public struct StorySharePreviewScreen: View {
                                         .frame(maxWidth: .infinity, minHeight: Theme.minimumTapTarget)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(Theme.Colour.accent)
+                                .tint(Theme.Colour.secondaryAccent)
                                 .padding(.horizontal, Theme.Space.l)
                             }
                             #endif

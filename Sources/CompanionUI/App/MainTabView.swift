@@ -39,7 +39,13 @@ public struct MainTabView: View {
                 .tabItem { Label("Profile", systemImage: "person.crop.circle") }
                 .tag(Destination.profile)
         }
-        .tint(Theme.Colour.accent)
+        // The app's second brand colour carries interaction chrome — the
+        // selected tab, toolbar actions, native controls — while the green
+        // stays the identity colour behind primary CTAs and full-screen
+        // surfaces (Start Walk, cards, the map). Two colours doing distinct
+        // jobs reads as a considered palette; one glued on top of the other
+        // everywhere would not.
+        .tint(Theme.Colour.secondaryAccent)
         .overlay(alignment: .top) {
             if let banner = model.banner {
                 BannerView(message: banner) { model.banner = nil }

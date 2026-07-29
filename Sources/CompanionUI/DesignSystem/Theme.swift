@@ -23,10 +23,15 @@ public enum Theme {
             dark: (0.44, 0.76, 0.58)
         )
 
-        /// A warm sand, used sparingly for streaks and celebration.
+        /// A vivid gold — the app's second brand colour, promoted from an
+        /// occasional highlight to a genuine co-equal accent: the tab bar,
+        /// streaks, celebrations, achievement gold and every "share the
+        /// story" moment all read from this one value. More saturated than
+        /// the sand it replaces, on purpose — it needs to hold its own next
+        /// to the green rather than read as a muted variant of it.
         public static let secondaryAccent = adaptiveColor(
-            light: (0.76, 0.55, 0.24),
-            dark: (0.91, 0.73, 0.40)
+            light: (0.86, 0.58, 0.09),
+            dark: (0.98, 0.76, 0.32)
         )
 
         /// The recorded route. Chosen to stay legible over both the light and
