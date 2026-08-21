@@ -71,6 +71,9 @@ targets:
         # Required for background location. Xcode adds the matching entitlement
         # automatically; the Info.plist declares the background mode itself.
         ENABLE_BITCODE: NO
+        # WeatherKit needs the paid Apple Developer Program membership before
+        # the App ID can carry the capability — see Sources/Companion/Companion.entitlements.
+        CODE_SIGN_ENTITLEMENTS: Sources/Companion/Companion.entitlements
 
   CompanionUIAutomation:
     type: bundle.ui-testing
