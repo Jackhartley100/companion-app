@@ -3,6 +3,13 @@ Notes for App Review:
 No account or sign-in is required — the app is fully usable immediately after
 onboarding (enter a name and add a dog).
 
+SUBSCRIPTION: After onboarding, the app shows a paywall (Companion Pro,
+com.jackhartley.companion.pro.monthly, 7-day free trial then £4.99/month).
+This gates the entire app — there is no free tier beyond the trial. Please
+use a Sandbox Apple ID to start the free trial and proceed past the paywall;
+the trial completes the purchase flow immediately without charge. "Restore
+Purchases" is available on the same screen.
+
 BACKGROUND LOCATION: The app declares the "location" background mode. It is
 used solely so that an actively recording dog walk keeps tracking when the
 screen locks or the phone goes in a pocket. The app requests only
