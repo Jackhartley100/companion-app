@@ -166,14 +166,14 @@ struct StatisticsScreen: View {
                         value: "\(streak.current)",
                         label: streak.current == 1 ? "Day streak" : "Day streak",
                         symbolName: "flame.fill",
-                        tint: Theme.Colour.secondaryAccent,
+                        tint: Theme.Colour.accent,
                         accessibleValue: "\(streak.current) \(streak.current == 1 ? "day" : "days") in a row"
                     )
                     MetricCard(
                         value: "\(streak.best)",
                         label: "Best streak",
                         symbolName: "crown.fill",
-                        tint: Theme.Colour.secondaryAccent,
+                        tint: Theme.Colour.accent,
                         accessibleValue: "\(streak.best) \(streak.best == 1 ? "day" : "days")"
                     )
                 }

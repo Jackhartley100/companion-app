@@ -39,13 +39,14 @@ public struct MainTabView: View {
                 .tabItem { Label("Profile", systemImage: "person.crop.circle") }
                 .tag(Destination.profile)
         }
-        // The app's second brand colour carries interaction chrome — the
-        // selected tab, toolbar actions, native controls — while the green
-        // stays the identity colour behind primary CTAs and full-screen
-        // surfaces (Start Walk, cards, the map). Two colours doing distinct
-        // jobs reads as a considered palette; one glued on top of the other
-        // everywhere would not.
-        .tint(Theme.Colour.secondaryAccent)
+        // One highlight colour throughout: the cream accent carries every
+        // piece of interaction chrome — the selected tab, toolbar actions,
+        // native controls — as well as primary CTAs and full-screen surfaces.
+        // Gold is reserved for the two places it means something specific
+        // rather than "this is tappable": achievement tier badges (an actual
+        // gold medal, not a UI accent) and the matching ring metrics on Today
+        // and Activities.
+        .tint(Theme.Colour.accent)
         .overlay(alignment: .top) {
             if let banner = model.banner {
                 BannerView(message: banner) { model.banner = nil }

@@ -38,12 +38,14 @@ struct TodayScreen: View {
                     }
 
                     todayCard
+                    metricsSection
+                    weatherSection
 
                     if let dog = model.selectedDog {
+                        recentSection(for: dog)
                         goalSection(for: dog)
                         insightSection(for: dog)
                         weeklySection(for: dog)
-                        recentSection(for: dog)
                     }
                 }
                 .padding(.horizontal, Theme.Space.l)
@@ -65,10 +67,14 @@ struct TodayScreen: View {
                 }
             }
         }
+        .task { await model.loadWeather() }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             now = Date()
-            Task { await model.refreshActivities() }
+            Task {
+                await model.refreshActivities()
+                await model.loadWeather()
+            }
         }
     }
 
@@ -113,42 +119,111 @@ struct TodayScreen: View {
     }
 
     private var todayCard: some View {
-        let totals = model.todayTotals(for: model.selectedDogID, now: now)
         let streak = model.streak(for: model.selectedDogID, now: now)
 
         return Card {
             VStack(alignment: .leading, spacing: Theme.Space.l) {
-                HStack(alignment: .top) {
-                    MetricCard(
-                        value: formatters.distanceValue(totals.distance),
-                        unit: formatters.distanceUnitLabel,
-                        label: "Today",
-                        symbolName: "figure.walk",
-                        accessibleValue: formatters.accessibleDistance(totals.distance)
-                    )
-                    MetricCard(
-                        value: formatters.duration(totals.duration),
-                        label: "Time",
-                        symbolName: "clock",
-                        accessibleValue: formatters.spelledDuration(totals.duration)
-                    )
-                    MetricCard(
-                        value: "\(totals.walkCount)",
-                        label: totals.walkCount == 1 ? "Walk" : "Walks",
-                        symbolName: "checkmark.circle"
-                    )
-                }
-
                 if streak.current >= 2 {
                     Label(
                         "\(streak.current) days in a row",
                         systemImage: "flame.fill"
                     )
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Theme.Colour.secondaryAccent)
+                    .foregroundStyle(Theme.Colour.accent)
                 }
 
                 PrimaryButton("Start Walk", symbolName: "figure.walk", action: startWalk)
+            }
+        }
+    }
+
+    /// Today's headline numbers as a horizontal strip of individually-carded
+    /// widgets, rather than the single combined card `todayCard` used to show
+    /// them in — each metric now reads as its own glanceable tile instead of
+    /// three columns competing inside one container.
+    private var metricsSection: some View {
+        let totals = model.todayTotals(for: model.selectedDogID, now: now)
+        let distanceGoal = model.goalProgress(for: model.selectedDogID, now: now)
+            .first { $0.goal.goalType == .distance }
+
+        return VStack(alignment: .leading, spacing: Theme.Space.m) {
+            SectionHeader("Today's metrics")
+
+            HStack(spacing: Theme.Space.m) {
+                RingMetricCard(
+                    value: formatters.distanceValue(totals.distance),
+                    target: distanceGoal.map {
+                        formatters.distanceValue($0.goal.targetValue) + formatters.distanceUnitLabel
+                    },
+                    label: "Distance",
+                    symbolName: "figure.walk",
+                    tint: Theme.Colour.accent,
+                    accessibleValue: formatters.accessibleDistance(totals.distance)
+                )
+                RingMetricCard(
+                    value: formatters.duration(totals.duration),
+                    label: "Time walked",
+                    symbolName: "clock.fill",
+                    tint: Theme.Colour.route,
+                    accessibleValue: formatters.spelledDuration(totals.duration)
+                )
+                RingMetricCard(
+                    value: "\(totals.walkCount)",
+                    label: totals.walkCount == 1 ? "Walk" : "Walks",
+                    symbolName: "checkmark.circle.fill",
+                    tint: Theme.Colour.secondaryAccent
+                )
+            }
+        }
+    }
+
+    /// Current conditions where the owner is right now, plus a suggested time
+    /// to walk today. Both come from `AppModel.loadWeather()`, which quietly
+    /// does nothing when there's no location fix or no weather entitlement —
+    /// so this section just as quietly disappears rather than showing an
+    /// error or a placeholder for a feature that isn't available.
+    @ViewBuilder
+    private var weatherSection: some View {
+        let suggestion = model.walkTimeSuggestion(for: model.selectedDogID, now: now)
+
+        if model.currentWeather != nil || suggestion != nil {
+            Card {
+                VStack(alignment: .leading, spacing: Theme.Space.m) {
+                    if let weather = model.currentWeather {
+                        HStack(spacing: Theme.Space.m) {
+                            Image(systemName: weather.condition.symbolName)
+                                .font(.title2)
+                                .foregroundStyle(Theme.Colour.accent)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: Theme.Space.xxs) {
+                                Text("\(Int(weather.temperatureCelsius.rounded()))°C, \(weather.condition.displayName)")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.Colour.primaryText)
+                                Text("Where you are right now")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.Colour.secondaryText)
+                            }
+                        }
+
+                        if suggestion != nil {
+                            Divider().overlay(Theme.Colour.separator)
+                        }
+                    }
+
+                    if let suggestion {
+                        HStack(alignment: .top, spacing: Theme.Space.m) {
+                            Image(systemName: suggestion.symbolName)
+                                .foregroundStyle(
+                                    suggestion.tone == .good ? Theme.Colour.success : Theme.Colour.warning
+                                )
+                                .frame(width: 28)
+                            Text(suggestion.text)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.Colour.primaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
             }
         }
     }
@@ -215,7 +290,7 @@ struct TodayScreen: View {
         switch tone {
         case .observation: Theme.Colour.accent
         case .encouragement: Theme.Colour.accent
-        case .celebration: Theme.Colour.secondaryAccent
+        case .celebration: Theme.Colour.accent
         }
     }
 
@@ -230,14 +305,33 @@ struct TodayScreen: View {
         }
     }
 
+    /// The walk shown just under the metrics: the most eye-catching one from
+    /// the last few days if there is a clear standout, otherwise simply the
+    /// latest — so a short evening stroll doesn't bump yesterday's long
+    /// weekend hike off screen the moment it's logged.
+    private func featuredActivity(for dogID: UUID?) -> (activity: WalkActivity, isLatest: Bool)? {
+        let recent = model.activities(for: dogID)
+        guard let latest = recent.first else { return nil }
+
+        let window = calendar.date(byAdding: .day, value: -3, to: now) ?? now
+        let standout = recent
+            .filter { $0.startDate >= window }
+            .max { $0.distance < $1.distance }
+
+        guard let standout, standout.id != latest.id, standout.distance > latest.distance * 1.4 else {
+            return (latest, true)
+        }
+        return (standout, false)
+    }
+
     @ViewBuilder
     private func recentSection(for dog: Dog) -> some View {
-        let recent = model.activities(for: dog.id).first
+        let featured = featuredActivity(for: dog.id)
 
         VStack(alignment: .leading, spacing: Theme.Space.m) {
-            SectionHeader("Latest walk")
+            SectionHeader(featured?.isLatest == false ? "Recent highlight" : "Latest walk")
 
-            if let recent {
+            if let recent = featured?.activity {
                 NavigationLink(value: TodayRoute.activity(recent)) {
                     Card {
                         VStack(alignment: .leading, spacing: Theme.Space.m) {

@@ -91,11 +91,11 @@ public struct DailyActivityChart: View {
             if let goalValue, goalValue > 0, metric != .walks {
                 RuleMark(y: .value("Goal", goalValue / Double(max(1, days.count))))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .foregroundStyle(Theme.Colour.secondaryAccent)
+                    .foregroundStyle(Theme.Colour.accent)
                     .annotation(position: .top, alignment: .trailing) {
                         Text("Daily pace for goal")
                             .font(.caption2)
-                            .foregroundStyle(Theme.Colour.secondaryAccent)
+                            .foregroundStyle(Theme.Colour.accent)
                     }
             }
         }

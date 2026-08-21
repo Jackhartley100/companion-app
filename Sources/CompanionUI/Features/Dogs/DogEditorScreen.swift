@@ -1,5 +1,4 @@
 import SwiftUI
-import PhotosUI
 import CompanionCore
 
 /// Creates or edits a dog.
@@ -34,7 +33,6 @@ struct DogEditorScreen: View {
     @State private var sex: DogSex = .unspecified
     @State private var weightText: String = ""
     @State private var activityLevel: ActivityLevel = .moderate
-    @State private var photoItem: PhotosPickerItem?
     @State private var photoReference: String?
     @State private var photoData: Data?
     @State private var isSaving = false
@@ -62,78 +60,104 @@ struct DogEditorScreen: View {
     }
 
     var body: some View {
-        Form {
-            photoSection
-            detailsSection
-            ageSection
-            aboutSection
-            saveSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Space.xxl) {
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
+                    Text(mode.existingDog == nil ? "Add your dog" : "Edit \(trimmedName)")
+                        .font(Theme.Typeface.heroTitle(.title))
+                        .foregroundStyle(Theme.Colour.primaryText)
+                    Text("Everything except the name can be added or changed later.")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.Colour.secondaryText)
+                }
+
+                photoSection
+
+                VStack(alignment: .leading, spacing: Theme.Space.s) {
+                    SectionHeader("What's their name?")
+                    TextField("Name", text: $name)
+                        .textContentType(.name)
+                        .focused($isFieldFocused)
+                        .submitLabel(.done)
+                        .onSubmit { isFieldFocused = false }
+                        .foregroundStyle(Theme.Colour.primaryText)
+                        .padding(Theme.Space.m)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.Colour.surface)
+                        .clipShape(Capsule())
+                }
+
+                ageSection
+                aboutSection
+
+                PrimaryButton(
+                    mode.existingDog == nil ? "Add \(trimmedName.isEmpty ? "Dog" : trimmedName)" : "Save",
+                    trailingSymbolName: "checkmark",
+                    isLoading: isSaving,
+                    isEnabled: !trimmedName.isEmpty
+                ) {
+                    Task { await save() }
+                }
+            }
+            .padding(Theme.Space.xl)
+            // `TextField`, `Menu` and `Toggle` labels don't reliably pick up
+            // `.fontDesign` from the environment the way plain `Text` does —
+            // see the same note on `OwnerDetailsScreen`.
+            .fontDesign(.rounded)
         }
-        .navigationTitle(mode.existingDog == nil ? "Add your dog" : "Edit \(trimmedName)")
+        .background(Theme.Colour.background)
         .compactNavigationTitle()
         // Typing the name brings up the keyboard, which covers the save button
-        // at the bottom of the form. Swiping the form down dismisses it, and the
-        // toolbar gives a deliberate way out for anyone who does not discover
-        // that. Confirmed against the real keyboard in the simulator.
+        // at the bottom of the screen. Swiping down dismisses it — the only
+        // way out now that there's no keyboard toolbar button.
         .scrollDismissesKeyboardInteractively()
-        .keyboardDoneButton(isFocused: isFieldFocused) { isFieldFocused = false }
         .onAppear(perform: populateIfNeeded)
-        .task(id: photoItem) { await loadSelectedPhoto() }
+        .tint(Theme.Colour.accent)
     }
 
     private var photoSection: some View {
-        Section {
-            HStack {
-                Spacer()
-                VStack(spacing: Theme.Space.m) {
-                    ZStack {
-                        if let photoData, let image = Image(data: photoData) {
-                            image.resizable().scaledToFill()
-                        } else {
-                            // Sized explicitly: an unbounded `Circle()` takes the
-                            // whole size the row proposes, and the outer `.frame`
-                            // does not clip it.
-                            Circle()
-                                .fill(Theme.Colour.accent.opacity(0.14))
-                                .frame(width: 108, height: 108)
-                            Image(systemName: "camera")
-                                .font(.title2)
-                                .foregroundStyle(Theme.Colour.accent)
-                        }
-                    }
-                    .frame(width: 108, height: 108)
-                    .clipped()
-                    .clipShape(Circle())
-                    // Decorative preview; the PhotosPicker below is the control.
-                    .allowsHitTesting(false)
-
-                    PhotosPicker(
-                        photoData == nil ? "Add a photo" : "Change photo",
-                        selection: $photoItem,
-                        matching: .images
-                    )
-                    .font(.subheadline)
+        VStack(spacing: Theme.Space.m) {
+            ZStack {
+                if let photoData, let image = Image(data: photoData) {
+                    image.resizable().scaledToFill()
+                } else {
+                    Circle().fill(Theme.Colour.surface)
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 44, weight: .regular))
+                        .foregroundStyle(Theme.Colour.secondaryText)
                 }
-                Spacer()
             }
-            .listRowBackground(Color.clear)
-        } footer: {
-            Text("Optional. A photo makes it easier to tell your dogs apart at a glance.")
-        }
-    }
+            .frame(width: 140, height: 140)
+            .clipShape(Circle())
+            .overlay(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(Theme.Colour.accent)
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Image(systemName: "camera.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.black)
+                    )
+                    .overlay(Circle().strokeBorder(Theme.Colour.background, lineWidth: 3))
+                    .allowsHitTesting(false)
+            }
 
-    private var detailsSection: some View {
-        Section("Name") {
-            TextField("Name", text: $name)
-                .textContentType(.name)
-                .focused($isFieldFocused)
-                .submitLabel(.done)
-                .onSubmit { isFieldFocused = false }
+            AddWalkPhotoButton(
+                label: photoData == nil ? "Add a Photo" : "Change Photo",
+                symbolName: "camera.fill"
+            ) { data in
+                photoData = data
+                photoReference = try? await model.environment.imageStore.store(data)
+            }
+            .font(.subheadline.weight(.medium))
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var ageSection: some View {
-        Section {
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            SectionHeader("How old are they?")
+
             Picker("Age", selection: $ageKind) {
                 ForEach(AgeKind.allCases) { Text($0.displayName).tag($0) }
             }
@@ -141,38 +165,77 @@ struct DogEditorScreen: View {
 
             switch ageKind {
             case .dateOfBirth:
-                DatePicker(
-                    "Date of birth",
-                    selection: $dateOfBirth,
-                    in: ...Date(),
-                    displayedComponents: .date
-                )
+                HStack {
+                    Text("Date of birth")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Theme.Colour.primaryText)
+                    Spacer(minLength: 0)
+                    DatePicker(
+                        "",
+                        selection: $dateOfBirth,
+                        in: ...Date(),
+                        displayedComponents: .date
+                    )
+                    .labelsHidden()
+                }
+                .padding(Theme.Space.m)
+                .frame(maxWidth: .infinity)
+                .background(Theme.Colour.surface)
+                .clipShape(Capsule())
             case .estimate:
-                Stepper("About \(estimatedYears) \(estimatedYears == 1 ? "year" : "years")",
-                        value: $estimatedYears, in: 0...25)
-                Stepper("and \(estimatedMonths) \(estimatedMonths == 1 ? "month" : "months")",
-                        value: $estimatedMonths, in: 0...11)
+                VStack(spacing: Theme.Space.s) {
+                    Stepper(value: $estimatedYears, in: 0...25) {
+                        Text("About \(estimatedYears) \(estimatedYears == 1 ? "year" : "years")")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.Colour.primaryText)
+                    }
+                    .padding(Theme.Space.m)
+                    .background(Theme.Colour.surface)
+                    .clipShape(Capsule())
+
+                    Stepper(value: $estimatedMonths, in: 0...11) {
+                        Text("and \(estimatedMonths) \(estimatedMonths == 1 ? "month" : "months")")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.Colour.primaryText)
+                    }
+                    .padding(Theme.Space.m)
+                    .background(Theme.Colour.surface)
+                    .clipShape(Capsule())
+                }
             case .unknown:
                 EmptyView()
             }
-        } header: {
-            Text("Age")
-        } footer: {
+
             Text("If you adopted your dog and their birthday is not known, an estimate is fine.")
+                .font(.caption)
+                .foregroundStyle(Theme.Colour.secondaryText)
         }
     }
 
     private var aboutSection: some View {
-        Section("About") {
-            TextField("Breed", text: $breedName)
-            Toggle("Mixed breed", isOn: $isMixedBreed)
+        VStack(alignment: .leading, spacing: Theme.Space.s) {
+            SectionHeader("Tell us more")
 
-            Picker("Sex", selection: $sex) {
-                ForEach(DogSex.allCases) { Text($0.displayName).tag($0) }
-            }
+            TextField("Breed", text: $breedName)
+                .foregroundStyle(Theme.Colour.primaryText)
+                .padding(Theme.Space.m)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.Colour.surface)
+                .clipShape(Capsule())
+
+            Toggle("Mixed breed", isOn: $isMixedBreed)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Theme.Colour.primaryText)
+                .padding(Theme.Space.m)
+                .background(Theme.Colour.surface)
+                .clipShape(Capsule())
+
+            PillPickerRow(title: "Sex", selection: $sex, displayName: \.displayName)
 
             HStack {
                 Text("Weight")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.Colour.primaryText)
                 Spacer()
                 TextField("Optional", text: $weightText)
                     .multilineTextAlignment(.trailing)
@@ -183,32 +246,11 @@ struct DogEditorScreen: View {
                 Text(model.formatters.weightUnit == .kilograms ? "kg" : "lb")
                     .foregroundStyle(Theme.Colour.secondaryText)
             }
+            .padding(Theme.Space.m)
+            .background(Theme.Colour.surface)
+            .clipShape(Capsule())
 
-            Picker("Usual activity", selection: $activityLevel) {
-                ForEach(ActivityLevel.allCases) { level in
-                    VStack(alignment: .leading) {
-                        Text(level.displayName)
-                        Text(level.summary).font(.caption)
-                    }
-                    .tag(level)
-                }
-            }
-        }
-    }
-
-    private var saveSection: some View {
-        Section {
-            PrimaryButton(
-                mode.existingDog == nil ? "Add \(trimmedName.isEmpty ? "Dog" : trimmedName)" : "Save",
-                isLoading: isSaving,
-                isEnabled: !trimmedName.isEmpty
-            ) {
-                Task { await save() }
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-        } footer: {
-            Text("Everything except the name can be added or changed later.")
+            PillPickerRow(title: "Usual activity", selection: $activityLevel, displayName: \.displayName)
         }
     }
 
@@ -243,13 +285,6 @@ struct DogEditorScreen: View {
         if let reference = dog.imageReference {
             Task { photoData = try? await model.environment.imageStore.data(for: reference) }
         }
-    }
-
-    private func loadSelectedPhoto() async {
-        guard let photoItem else { return }
-        guard let data = try? await photoItem.loadTransferable(type: Data.self) else { return }
-        photoData = data
-        photoReference = try? await model.environment.imageStore.store(data)
     }
 
     private func save() async {

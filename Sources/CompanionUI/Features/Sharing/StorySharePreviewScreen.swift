@@ -60,10 +60,11 @@ public struct StorySharePreviewScreen: View {
                                     preview: SharePreview(shareTitle, image: Image(uiImage: sharedUIImage))
                                 ) {
                                     Label("Share to Story", systemImage: "square.and.arrow.up")
+                                        .foregroundStyle(.black)
                                         .frame(maxWidth: .infinity, minHeight: Theme.minimumTapTarget)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(Theme.Colour.secondaryAccent)
+                                .tint(Theme.Colour.accent)
                                 .padding(.horizontal, Theme.Space.l)
                             }
                             #endif

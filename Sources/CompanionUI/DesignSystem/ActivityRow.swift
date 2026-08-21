@@ -38,7 +38,7 @@ public struct ActivityRow: View {
                     if hasAchievement {
                         Image(systemName: "rosette")
                             .font(.caption)
-                            .foregroundStyle(Theme.Colour.secondaryAccent)
+                            .foregroundStyle(Theme.Colour.accent)
                     }
                 }
 

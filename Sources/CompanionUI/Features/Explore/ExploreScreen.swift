@@ -2,6 +2,23 @@ import SwiftUI
 import MapKit
 import CompanionCore
 
+extension PlaceCategory {
+    /// The one place a category becomes a colour — everything else works with
+    /// the category itself, so a future rebalancing of the palette touches
+    /// one line. See `Theme.Colour.Place`.
+    public var tint: Color {
+        switch self {
+        case .park: Theme.Colour.Place.park
+        case .beach: Theme.Colour.Place.beach
+        case .woodland: Theme.Colour.Place.woodland
+        case .securedField: Theme.Colour.Place.securedField
+        case .cafe: Theme.Colour.Place.cafe
+        case .pub: Theme.Colour.Place.pub
+        case .waterPoint: Theme.Colour.Place.waterPoint
+        }
+    }
+}
+
 /// Dog-friendly places.
 ///
 /// The MVP ships bundled example places rather than live listings, and says so
@@ -17,6 +34,7 @@ struct ExploreScreen: View {
     @State private var places: [Place] = []
     @State private var savedIDs: Set<UUID> = []
     @State private var categoryFilter: PlaceCategory?
+    @State private var showsSavedOnly = false
     @State private var isMapMode = false
     @State private var camera: MapCameraPosition = .automatic
     @State private var isLoading = true
@@ -61,7 +79,7 @@ struct ExploreScreen: View {
                         title: "Nothing in this category",
                         message: "Try another category to see more places.",
                         actionTitle: "Show all",
-                        action: { categoryFilter = nil }
+                        action: { categoryFilter = nil; showsSavedOnly = false }
                     )
                 } else if isMapMode {
                     mapView
@@ -100,9 +118,10 @@ struct ExploreScreen: View {
     private var listView: some View {
         List {
             Section {
-                sampleDataNotice
-                locationNotice
+                ExploreHeroArt()
             }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
 
             Section {
                 categoryPicker
@@ -117,6 +136,15 @@ struct ExploreScreen: View {
                     )
                 }
             }
+
+            // The provenance and location notices move to the very bottom —
+            // worth keeping accessible since someone could travel on the
+            // strength of this screen, but not worth leading with above the
+            // places themselves.
+            Section {
+                sampleDataNotice
+                locationNotice
+            }
         }
         .groupedListStyle()
     }
@@ -125,7 +153,7 @@ struct ExploreScreen: View {
         Map(position: $camera) {
             ForEach(filtered) { place in
                 Marker(place.name, systemImage: place.category.symbolName, coordinate: place.coordinate.clCoordinate)
-                    .tint(Theme.Colour.accent)
+                    .tint(place.category.tint)
             }
             if userLocation != nil {
                 UserAnnotation()
@@ -200,9 +228,20 @@ struct ExploreScreen: View {
                     CategoryChip(
                         title: category.displayName,
                         symbolName: category.symbolName,
+                        tint: category.tint,
                         isSelected: categoryFilter == category
                     ) {
                         categoryFilter = categoryFilter == category ? nil : category
+                    }
+                }
+
+                if !savedIDs.isEmpty {
+                    CategoryChip(
+                        title: "Saved",
+                        symbolName: "bookmark.fill",
+                        isSelected: showsSavedOnly
+                    ) {
+                        showsSavedOnly.toggle()
                     }
                 }
             }
@@ -211,8 +250,14 @@ struct ExploreScreen: View {
     }
 
     private var filtered: [Place] {
-        guard let categoryFilter else { return places }
-        return places.filter { $0.category == categoryFilter }
+        var result = places
+        if let categoryFilter {
+            result = result.filter { $0.category == categoryFilter }
+        }
+        if showsSavedOnly {
+            result = result.filter { savedIDs.contains($0.id) }
+        }
+        return result
     }
 
     private func load() async {
@@ -242,9 +287,54 @@ struct ExploreScreen: View {
     }
 }
 
+/// The banner at the top of Explore's list — real photography rather than
+/// map data or an icon, the same "lead with a photo" idea as Welcome and
+/// Account in onboarding. Falls back to a blank placeholder card so the
+/// layout still reads correctly on builds where the asset catalogue isn't
+/// visible (see `WelcomeHero`'s equivalent fallback for why).
+struct ExploreHeroArt: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if let photograph = Image.namedIfAvailable("ExploreArtwork") {
+                photograph
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Theme.Colour.surface
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.system(size: 34, weight: .regular))
+                            .foregroundStyle(Theme.Colour.secondaryText.opacity(0.4))
+                    )
+            }
+
+            // Dissolves the photo's lower edge into the page background,
+            // the same treatment used on Welcome and Account, so the banner
+            // reads as part of the page rather than a hard-edged rectangle
+            // sitting on top of the list.
+            LinearGradient(
+                stops: [
+                    .init(color: Theme.Colour.groupedBackground.opacity(0), location: 0),
+                    .init(color: Theme.Colour.groupedBackground.opacity(0.6), location: 0.7),
+                    .init(color: Theme.Colour.groupedBackground, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 80)
+            .allowsHitTesting(false)
+        }
+        .frame(height: 190)
+        .frame(maxWidth: .infinity)
+        .clipped()
+        .accessibilityHidden(true)
+    }
+}
+
 struct CategoryChip: View {
     let title: String
     let symbolName: String
+    var tint: Color = Theme.Colour.accent
     let isSelected: Bool
     let action: () -> Void
 
@@ -255,8 +345,8 @@ struct CategoryChip: View {
                 .padding(.horizontal, Theme.Space.m)
                 .padding(.vertical, Theme.Space.s)
                 .frame(minHeight: Theme.minimumTapTarget)
-                .background(isSelected ? Theme.Colour.accent : Theme.Colour.fill)
-                .foregroundStyle(isSelected ? .white : Theme.Colour.primaryText)
+                .background(isSelected ? tint : Theme.Colour.fill)
+                .foregroundStyle(isSelected ? .black : Theme.Colour.primaryText)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -269,25 +359,40 @@ struct PlaceRow: View {
     let isSaved: Bool
     var distanceText: String?
 
+    private var tint: Color { place.category.tint }
+
     var body: some View {
         HStack(spacing: Theme.Space.m) {
-            Image(systemName: place.category.symbolName)
-                .font(.body)
-                .foregroundStyle(Theme.Colour.accent)
-                .frame(width: 40, height: 40)
-                .background(Theme.Colour.accent.opacity(0.12), in: RoundedRectangle(
-                    cornerRadius: Theme.Radius.small, style: .continuous
-                ))
+            ZStack {
+                RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
+                    .fill(
+                        RadialGradient(
+                            colors: [tint.opacity(0.45), tint.opacity(0.16)],
+                            center: .init(x: 0.32, y: 0.28),
+                            startRadius: 0,
+                            endRadius: 48
+                        )
+                    )
+                Image(systemName: place.category.symbolName)
+                    .font(.title3)
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 56, height: 56)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 Text(place.name).font(.headline)
-                Text(
-                    [place.category.displayName, distanceText]
-                        .compactMap { $0 }
-                        .joined(separator: " · ")
-                )
-                .font(.caption)
-                .foregroundStyle(Theme.Colour.secondaryText)
+                Text(place.category.displayName)
+                    .font(.caption)
+                    .foregroundStyle(Theme.Colour.secondaryText)
+
+                if let distanceText {
+                    Text(distanceText)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Theme.Colour.primaryText)
+                        .padding(.horizontal, Theme.Space.xs)
+                        .padding(.vertical, 2)
+                        .background(Theme.Colour.fill, in: Capsule())
+                }
             }
 
             Spacer()
@@ -295,10 +400,10 @@ struct PlaceRow: View {
             if isSaved {
                 Image(systemName: "bookmark.fill")
                     .font(.caption)
-                    .foregroundStyle(Theme.Colour.secondaryAccent)
+                    .foregroundStyle(Theme.Colour.accent)
             }
         }
-        .padding(.vertical, Theme.Space.xxs)
+        .padding(.vertical, Theme.Space.xs)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             [place.name, place.category.displayName, distanceText, isSaved ? "saved" : nil]
@@ -332,18 +437,20 @@ struct PlaceDetailScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Space.xl) {
+                PlaceHeroArt(category: place.category)
+
                 Map(position: $camera, interactionModes: []) {
                     Marker(place.name, systemImage: place.category.symbolName, coordinate: place.coordinate.clCoordinate)
-                        .tint(Theme.Colour.accent)
+                        .tint(place.category.tint)
                 }
-                .frame(height: 200)
+                .frame(height: 160)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: Theme.Space.s) {
                     Label(place.category.displayName, systemImage: place.category.symbolName)
                         .font(.subheadline)
-                        .foregroundStyle(Theme.Colour.accent)
+                        .foregroundStyle(place.category.tint)
                     Text(place.summary)
                         .font(.body)
                         .fixedSize(horizontal: false, vertical: true)
@@ -410,6 +517,49 @@ struct PlaceDetailScreen: View {
         let item = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate.clCoordinate))
         item.name = place.name
         item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeWalking])
+    }
+}
+
+/// A category-coloured composition standing in for a photograph.
+///
+/// With no photo provider, every place would otherwise open onto the same map
+/// snippet as the last one — this gives each category a distinct identity the
+/// moment the screen opens, before the map or any text has loaded in.
+struct PlaceHeroArt: View {
+    let category: PlaceCategory
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [category.tint.opacity(0.35), category.tint.opacity(0.08)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Image(systemName: category.symbolName)
+                .font(.system(size: 96, weight: .regular))
+                .foregroundStyle(category.tint.opacity(0.28))
+                .offset(x: 32, y: 14)
+                .accessibilityHidden(true)
+
+            HStack {
+                Label(category.displayName, systemImage: category.symbolName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(category.tint)
+                    .padding(.horizontal, Theme.Space.m)
+                    .padding(.vertical, Theme.Space.s)
+                    .background(Theme.Colour.background.opacity(0.55), in: Capsule())
+                    .padding(Theme.Space.m)
+                Spacer(minLength: 0)
+            }
+            .frame(maxHeight: .infinity, alignment: .bottom)
+        }
+        .frame(height: 140)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .accessibilityHidden(true)
     }
 }
 

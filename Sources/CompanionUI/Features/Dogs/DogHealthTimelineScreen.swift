@@ -181,7 +181,7 @@ struct DogHealthTimelineScreen: View {
             entries.append(TimelineEntry(
                 date: unlock.unlockedAt,
                 symbolName: definition.symbolName,
-                tint: Theme.Colour.secondaryAccent,
+                tint: Theme.Colour.accent,
                 title: definition.title,
                 detail: definition.details
             ))

@@ -4,53 +4,89 @@ import SwiftUI
 public struct PrimaryButton: View {
     private let title: String
     private let symbolName: String?
+    private let trailingSymbolName: String?
     private let isLoading: Bool
     private let isEnabled: Bool
     private let role: ButtonRole?
+    /// Renders as frosted liquid glass instead of a solid fill — for buttons
+    /// sitting directly over photography, where a flat colour block would cut
+    /// across the image rather than sitting on top of it.
+    private let isGlass: Bool
+    /// Overrides the role-derived colour — for the rare screen (a
+    /// full-bleed photograph, say) where the single global accent isn't the
+    /// right call for this one button.
+    private let tintOverride: Color?
     private let action: () -> Void
 
     public init(
         _ title: String,
         symbolName: String? = nil,
+        trailingSymbolName: String? = nil,
         isLoading: Bool = false,
         isEnabled: Bool = true,
         role: ButtonRole? = nil,
+        isGlass: Bool = false,
+        tint: Color? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.symbolName = symbolName
+        self.trailingSymbolName = trailingSymbolName
         self.isLoading = isLoading
         self.isEnabled = isEnabled
         self.role = role
+        self.isGlass = isGlass
+        self.tintOverride = tint
         self.action = action
     }
 
     private var tint: Color {
-        role == .destructive ? Theme.Colour.destructive : Theme.Colour.accent
+        tintOverride ?? (role == .destructive ? Theme.Colour.destructive : Theme.Colour.accent)
     }
 
     public var body: some View {
         Button(role: role, action: action) {
-            HStack(spacing: Theme.Space.s) {
-                if isLoading {
-                    ProgressView().controlSize(.small).tint(.white)
-                } else if let symbolName {
-                    Image(systemName: symbolName)
-                }
-                Text(title).fontWeight(.semibold)
-            }
-            .frame(maxWidth: .infinity, minHeight: Theme.minimumTapTarget)
-            .padding(.vertical, Theme.Space.xs)
-            .foregroundStyle(.white)
-            .background(tint.opacity(isEnabled && !isLoading ? 1 : 0.4))
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
-            .contentShape(Rectangle())
+            label
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled || isLoading)
         // Without this, VoiceOver reads a loading button as tappable.
         .accessibilityLabel(isLoading ? "\(title), in progress" : title)
         .accessibilityAddTraits(.isButton)
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        let opacity = isEnabled && !isLoading ? 1.0 : 0.35
+        let content = HStack(spacing: Theme.Space.s) {
+            if isLoading {
+                ProgressView().controlSize(.small).tint(isGlass ? .white : .black)
+            } else if let symbolName {
+                Image(systemName: symbolName)
+            }
+            Text(title).fontWeight(.medium)
+            if !isLoading, let trailingSymbolName {
+                Image(systemName: trailingSymbolName)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: Theme.minimumTapTarget)
+        .padding(.vertical, Theme.Space.xs)
+        .contentShape(Capsule())
+
+        if isGlass {
+            content
+                .foregroundStyle(Theme.Colour.primaryText)
+                .liquidGlassCard(cornerRadius: Theme.minimumTapTarget, tint: tint.opacity(opacity))
+                .shadow(color: tint.opacity(opacity * 0.3), radius: 14, x: 0, y: 6)
+        } else {
+            content
+                // Black-on-tint rather than white — against this palette's
+                // saturated green and gold, a black label carries more
+                // contrast and more punch than white does.
+                .foregroundStyle(.black)
+                .background(tint.opacity(opacity))
+                .clipShape(Capsule())
+        }
     }
 }
 
@@ -82,12 +118,16 @@ public struct SecondaryButton: View {
         Button(role: role, action: action) {
             HStack(spacing: Theme.Space.s) {
                 if let symbolName { Image(systemName: symbolName) }
-                Text(title).fontWeight(.medium)
+                Text(title).fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity, minHeight: Theme.minimumTapTarget)
             .foregroundStyle(tint)
-            .background(tint.opacity(0.12))
+            .background(Theme.Colour.surfaceElevated)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
+                    .strokeBorder(tint.opacity(0.4), lineWidth: 1)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -181,7 +221,7 @@ public struct HoldToConfirmButton: View {
                 Text(isArmed ? armedTitle : title).fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity, minHeight: 54)
-            .foregroundStyle(.white)
+            .foregroundStyle(isArmed ? .white : .black)
             .background(isArmed ? Theme.Colour.destructive : Theme.Colour.accent)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
             .contentShape(Rectangle())

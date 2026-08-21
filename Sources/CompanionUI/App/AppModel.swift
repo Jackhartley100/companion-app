@@ -26,6 +26,8 @@ public final class AppModel {
     public private(set) var activities: [WalkActivity] = []
     public private(set) var goals: [Goal] = []
     public private(set) var unlocks: [AchievementUnlock] = []
+    public private(set) var currentWeather: WeatherSnapshot?
+    public private(set) var hourlyForecast: [WeatherSnapshot] = []
 
     /// The dog the app is currently talking about.
     public var selectedDogID: UUID? {
@@ -142,7 +144,36 @@ public final class AppModel {
         unlocks.contains { $0.walkID == activityID }
     }
 
+    /// When to walk today, from the selected dog's history and the fetched
+    /// forecast. `nil` until weather has loaded, or if it never does — this
+    /// nudge is a nice-to-have, never something worth blocking or erroring
+    /// the rest of Today over.
+    public func walkTimeSuggestion(for dogID: UUID?, now: Date = Date()) -> WalkTimeSuggestion? {
+        guard !hourlyForecast.isEmpty else { return nil }
+        return WalkTimeAdvisor(calendar: calendar).suggestion(
+            activities: activities(for: dogID),
+            hourlyForecast: hourlyForecast,
+            now: now
+        )
+    }
+
     // MARK: Loading
+
+    /// Fetches current conditions and today's remaining hourly forecast for
+    /// wherever the owner is right now.
+    ///
+    /// Silently gives up on any failure — no permission yet, permission
+    /// denied, no weather entitlement configured, no signal — since Today
+    /// works perfectly well without this and there is nothing actionable an
+    /// owner could do with a weather error banner.
+    public func loadWeather() async {
+        guard environment.weather.isAvailable else { return }
+        guard let coordinate = await environment.locationPermissions.currentLocation() else { return }
+        async let current = try? environment.weather.currentWeather(at: coordinate)
+        async let hourly = try? environment.weather.hourlyForecast(at: coordinate, hours: 24)
+        currentWeather = await current
+        hourlyForecast = await hourly ?? []
+    }
 
     public func load() async {
         loadState = .loading

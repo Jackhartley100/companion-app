@@ -22,7 +22,6 @@ struct ProfileScreen: View {
                 preferencesSection(model: model)
                 permissionsSection
                 privacySection
-                integrationsSection
                 supportSection
                 signOutSection
             }
@@ -97,9 +96,16 @@ struct ProfileScreen: View {
     private var accountSection: some View {
         Section {
             HStack(spacing: Theme.Space.m) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(Theme.Colour.accent)
+                StoredImage(
+                    reference: model.profile?.imageReference,
+                    imageStore: model.environment.imageStore
+                ) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(Theme.Colour.accent)
+                }
+                .frame(width: 52, height: 52)
+                .clipShape(Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.profile?.firstName.isEmpty == false
                          ? model.profile!.firstName
@@ -115,10 +121,7 @@ struct ProfileScreen: View {
 
             LabeledContent("Plan", value: subscription.planName)
         } footer: {
-            Text(
-                "Your data is stored on this iPhone. Accounts that sync between devices "
-                + "are planned for a future update."
-            )
+            Text("Your data is stored on this iPhone and does not sync to other devices.")
         }
     }
 
@@ -178,7 +181,6 @@ struct ProfileScreen: View {
                 isGranted: locationStatus.isUsable,
                 action: { Platform.openAppSettings() }
             )
-            notificationsRow
             permissionRow(
                 title: "Photos",
                 detail: "Asked for when you add a photo to a dog or a walk.",
@@ -247,31 +249,6 @@ struct ProfileScreen: View {
         .accessibilityHint(showsChevron ? "Opens Settings" : "")
     }
 
-    /// Notifications is not `permissionRow` — there is genuinely nothing to
-    /// enable yet (`InactiveNotificationService` schedules nothing), so it gets
-    /// the same "Coming soon" treatment as the sign-in options in onboarding
-    /// rather than a checkmark that implies a real, checkable permission.
-    private var notificationsRow: some View {
-        HStack(alignment: .top, spacing: Theme.Space.s) {
-            VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                HStack {
-                    Text("Notifications")
-                    Spacer()
-                    Text("Coming soon")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, Theme.Space.s)
-                        .padding(.vertical, Theme.Space.xxs)
-                        .background(Theme.Colour.fill, in: Capsule())
-                }
-                Text("Reminders are not built yet, so there is nothing to turn on here.")
-                    .font(.caption)
-                    .foregroundStyle(Theme.Colour.secondaryText)
-            }
-        }
-        .padding(.vertical, Theme.Space.xxs)
-        .accessibilityElement(children: .combine)
-    }
-
     private var locationDetail: String {
         switch locationStatus {
         case .always, .whenInUse: "Allowed while you are recording a walk."
@@ -301,44 +278,6 @@ struct ProfileScreen: View {
                 + "out of anything you share later."
             )
         }
-    }
-
-    private var integrationsSection: some View {
-        Section {
-            integrationRow("Apple Health", detail: "Not available in this version.", symbol: "heart")
-            integrationRow("Apple Watch", detail: "Planned for a future update.", symbol: "applewatch")
-            integrationRow(
-                "Companion Tracker",
-                detail: "The dog tracker is in development. Not available yet.",
-                symbol: "location.circle"
-            )
-            integrationRow(
-                "Export your data",
-                detail: "Exporting walks as a file is planned for a future update.",
-                symbol: "square.and.arrow.up"
-            )
-        } header: {
-            Text("Integrations")
-        } footer: {
-            Text("These are listed so you know what is coming. None of them are connected yet.")
-        }
-    }
-
-    private func integrationRow(_ title: String, detail: String, symbol: String) -> some View {
-        HStack(alignment: .top, spacing: Theme.Space.m) {
-            Image(systemName: symbol)
-                .foregroundStyle(Theme.Colour.secondaryText)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(Theme.Colour.secondaryText)
-            }
-            Spacer()
-        }
-        .padding(.vertical, Theme.Space.xxs)
-        .accessibilityElement(children: .combine)
     }
 
     private var supportSection: some View {

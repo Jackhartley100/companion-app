@@ -147,6 +147,84 @@ public struct CompactMetric: View {
     }
 }
 
+/// A standalone metric widget: a big number, an optional target, and a ring
+/// with a symbol at its centre — the card-per-metric layout used on Today's
+/// horizontal metric strip, as distinct from `MetricCard`'s plain in-card row.
+///
+/// The ring's filled arc is a fixed decorative flourish rather than a plotted
+/// fraction of `value`/`target` — Today's per-metric "how much is left"
+/// framing doesn't hold the same way it does for a single goal ring, so this
+/// stays a stylistic echo of that shape rather than a second progress
+/// indicator competing with `ProgressRing`.
+public struct RingMetricCard: View {
+    private let value: String
+    private let target: String?
+    private let label: String
+    private let symbolName: String
+    private let tint: Color
+    private let accessibleValue: String?
+
+    public init(
+        value: String,
+        target: String? = nil,
+        label: String,
+        symbolName: String,
+        tint: Color,
+        accessibleValue: String? = nil
+    ) {
+        self.value = value
+        self.target = target
+        self.label = label
+        self.symbolName = symbolName
+        self.tint = tint
+        self.accessibleValue = accessibleValue
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            VStack(alignment: .leading, spacing: Theme.Space.xxs) {
+                HStack(alignment: .firstTextBaseline, spacing: Theme.Space.xxs) {
+                    Text(value)
+                        .font(Theme.Typeface.metricValue(.title2))
+                        .foregroundStyle(Theme.Colour.primaryText)
+                    if let target {
+                        Text("/\(target)")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.Colour.secondaryText)
+                    }
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+                Text(label)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.Colour.secondaryText)
+            }
+
+            ZStack {
+                Circle()
+                    .stroke(tint.opacity(0.18), lineWidth: 7)
+                Circle()
+                    .trim(from: 0, to: 0.14)
+                    .stroke(tint, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Image(systemName: symbolName)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 72, height: 72)
+            .frame(maxWidth: .infinity)
+        }
+        .padding(Theme.Space.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.Colour.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(accessibleValue ?? [value, target].compactMap { $0 }.joined(separator: " of "))
+    }
+}
+
 /// A circular progress indicator for goals.
 public struct ProgressRing: View {
     private let fraction: Double

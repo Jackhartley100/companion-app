@@ -4,6 +4,10 @@ import Foundation
 public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
     public let id: UUID
     public var firstName: String
+    /// Optional — not required to use the app, and absent from every profile
+    /// created before this field existed (decodes to `nil`, not a decode
+    /// failure).
+    public var dateOfBirth: Date?
     /// Filename of the owner's photo inside the app's image store. See `ImageStore`.
     public var imageReference: String?
     public var preferredDistanceUnit: DistanceUnit
@@ -23,6 +27,7 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
     public init(
         id: UUID = UUID(),
         firstName: String = "",
+        dateOfBirth: Date? = nil,
         imageReference: String? = nil,
         preferredDistanceUnit: DistanceUnit = .default(),
         preferredWeightUnit: WeightUnit = .default(),
@@ -37,6 +42,7 @@ public struct UserProfile: Identifiable, Codable, Sendable, Hashable {
     ) {
         self.id = id
         self.firstName = firstName
+        self.dateOfBirth = dateOfBirth
         self.imageReference = imageReference
         self.preferredDistanceUnit = preferredDistanceUnit
         self.preferredWeightUnit = preferredWeightUnit

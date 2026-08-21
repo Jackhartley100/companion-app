@@ -22,6 +22,7 @@ public final class AppEnvironment {
     public let notifications: any NotificationService
     public let health: any HealthService
     public let analytics: any AnalyticsService
+    public let weather: any WeatherService
 
     public let trackingSource: any ActivityTrackingSource
     public let locationPermissions: any LocationPermissionProviding
@@ -40,6 +41,7 @@ public final class AppEnvironment {
         notifications: any NotificationService,
         health: any HealthService,
         analytics: any AnalyticsService,
+        weather: any WeatherService,
         trackingSource: any ActivityTrackingSource,
         locationPermissions: any LocationPermissionProviding
     ) {
@@ -56,6 +58,7 @@ public final class AppEnvironment {
         self.notifications = notifications
         self.health = health
         self.analytics = analytics
+        self.weather = weather
         self.trackingSource = trackingSource
         self.locationPermissions = locationPermissions
     }
@@ -86,9 +89,18 @@ public final class AppEnvironment {
             notifications: InactiveNotificationService(),
             health: UnavailableHealthService(),
             analytics: NoOpAnalyticsService(),
+            weather: Self.liveWeatherService(),
             trackingSource: phoneSource,
             locationPermissions: phoneSource
         )
+    }
+
+    private static func liveWeatherService() -> any WeatherService {
+        #if canImport(WeatherKit) && canImport(CoreLocation) && !os(Linux)
+        AppleWeatherService()
+        #else
+        UnavailableWeatherService()
+        #endif
     }
 
     /// A live environment rooted at a separate store and pre-filled with
@@ -141,7 +153,8 @@ public final class AppEnvironment {
         locationStatus: LocationAuthorizationStatus = .whenInUse,
         currentLocation: Coordinate? = nil,
         simulatedRoute: [RoutePoint]? = SyntheticRoute.loop(pointCount: 200),
-        subscription: SubscriptionStatus = .free
+        subscription: SubscriptionStatus = .free,
+        weather: any WeatherService = StubWeatherService()
     ) -> AppEnvironment {
         AppEnvironment(
             profileRepository: InMemoryUserProfileRepository(store: store),
@@ -157,6 +170,7 @@ public final class AppEnvironment {
             notifications: InactiveNotificationService(),
             health: UnavailableHealthService(),
             analytics: NoOpAnalyticsService(),
+            weather: weather,
             trackingSource: MockTrackingSource(
                 script: simulatedRoute ?? [],
                 interval: .milliseconds(400)

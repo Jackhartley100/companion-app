@@ -282,9 +282,9 @@ struct ActiveWalkScreen: View {
             if count > 0 {
                 Text("\(count)")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.black)
                     .padding(4)
-                    .background(Theme.Colour.secondaryAccent, in: Circle())
+                    .background(Theme.Colour.accent, in: Circle())
                     .offset(x: 6, y: -6)
                     .accessibilityHidden(true)
             }

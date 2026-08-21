@@ -349,7 +349,7 @@ public struct PremiumFeatureLock: View {
     public var body: some View {
         HStack(spacing: Theme.Space.m) {
             Image(systemName: "sparkles")
-                .foregroundStyle(Theme.Colour.secondaryAccent)
+                .foregroundStyle(Theme.Colour.accent)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 Text(entitlement.displayName).font(.subheadline.weight(.semibold))
@@ -360,7 +360,7 @@ public struct PremiumFeatureLock: View {
             Spacer(minLength: 0)
         }
         .padding(Theme.Space.m)
-        .background(Theme.Colour.secondaryAccent.opacity(0.10))
+        .background(Theme.Colour.accent.opacity(0.10))
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
         .accessibilityElement(children: .combine)
     }

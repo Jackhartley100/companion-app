@@ -38,15 +38,50 @@ public struct AchievementBadge: View {
     public var body: some View {
         VStack(spacing: Theme.Space.s) {
             ZStack {
+                if status.isUnlocked {
+                    // A soft bloom behind the badge, in the tier colour, so an
+                    // earned badge visibly lifts off the card rather than
+                    // sitting flush with everything around it — the one
+                    // moment in the app allowed to look like a celebration
+                    // rather than a piece of data.
+                    Circle()
+                        .fill(tierColour)
+                        .blur(radius: size * 0.28)
+                        .opacity(0.35)
+                        .frame(width: size * 0.92, height: size * 0.92)
+                }
+
                 Circle()
-                    .fill(status.isUnlocked ? tierColour.opacity(0.16) : Theme.Colour.fill)
+                    .fill(
+                        status.isUnlocked
+                            ? RadialGradient(
+                                colors: [tierColour.opacity(0.55), tierColour.opacity(0.16)],
+                                center: .init(x: 0.32, y: 0.28),
+                                startRadius: 0,
+                                endRadius: size * 0.7
+                            )
+                            : RadialGradient(
+                                colors: [Theme.Colour.fill, Theme.Colour.fill],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: size * 0.7
+                            )
+                    )
 
                 if status.isUnlocked {
                     // A thin ring in the tier colour, so a gold badge and a
                     // platinum badge are distinguishable even at a glance
                     // before anyone reads the icon or title.
                     Circle()
-                        .strokeBorder(tierColour.opacity(0.55), lineWidth: 1.5)
+                        .strokeBorder(tierColour.opacity(0.7), lineWidth: 2)
+
+                    // A crescent of light along the upper-left edge — the cue
+                    // that reads "metal, catching light" rather than "flat
+                    // coloured disc" at a glance.
+                    Circle()
+                        .trim(from: 0.56, to: 0.82)
+                        .stroke(Color.white.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
                 }
 
                 if let progress = status.progress, !status.isUnlocked, progress > 0 {
@@ -60,14 +95,15 @@ public struct AchievementBadge: View {
                 }
 
                 Image(systemName: status.definition.symbolName)
-                    .font(.system(size: size * 0.4))
+                    .font(.system(size: size * 0.38, weight: .semibold))
                     .foregroundStyle(
                         status.isUnlocked ? tierColour : Theme.Colour.secondaryText.opacity(0.55)
                     )
+                    .shadow(color: status.isUnlocked ? tierColour.opacity(0.5) : .clear, radius: 6)
             }
             .frame(width: size, height: size)
 
-            VStack(spacing: 1) {
+            VStack(spacing: Theme.Space.xxs) {
                 Text(status.definition.title)
                     .font(.caption2)
                     .fontWeight(status.isUnlocked ? .semibold : .regular)
@@ -81,7 +117,10 @@ public struct AchievementBadge: View {
                     Text(status.definition.tier.displayName.uppercased())
                         .font(.system(size: 8.5, weight: .bold))
                         .tracking(0.4)
-                        .foregroundStyle(tierColour)
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, Theme.Space.xs)
+                        .padding(.vertical, 2)
+                        .background(tierColour, in: Capsule())
                 }
             }
         }
@@ -118,11 +157,26 @@ public struct AchievementUnlockCard: View {
     public var body: some View {
         HStack(spacing: Theme.Space.m) {
             Image(systemName: definition.symbolName)
-                .font(.title2)
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(tierColour)
+                .shadow(color: tierColour.opacity(0.5), radius: 6)
                 .frame(width: 44, height: 44)
-                .background(tierColour.opacity(0.18), in: Circle())
-                .overlay(Circle().strokeBorder(tierColour.opacity(0.5), lineWidth: 1.5))
+                .background(
+                    RadialGradient(
+                        colors: [tierColour.opacity(0.5), tierColour.opacity(0.16)],
+                        center: .init(x: 0.32, y: 0.28),
+                        startRadius: 0,
+                        endRadius: 32
+                    ),
+                    in: Circle()
+                )
+                .overlay(Circle().strokeBorder(tierColour.opacity(0.7), lineWidth: 1.5))
+                .background(
+                    Circle()
+                        .fill(tierColour)
+                        .blur(radius: 14)
+                        .opacity(0.35)
+                )
                 .scaleEffect(hasAppeared || reduceMotion ? 1 : 0.6)
 
             VStack(alignment: .leading, spacing: Theme.Space.xxs) {
@@ -131,7 +185,10 @@ public struct AchievementUnlockCard: View {
                     Text(definition.tier.displayName.uppercased())
                         .font(.system(size: 9, weight: .bold))
                         .tracking(0.4)
-                        .foregroundStyle(tierColour)
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, Theme.Space.xs)
+                        .padding(.vertical, 2)
+                        .background(tierColour, in: Capsule())
                 }
                 Text(definition.details)
                     .font(.footnote)

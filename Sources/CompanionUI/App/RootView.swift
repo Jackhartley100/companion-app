@@ -38,7 +38,14 @@ public struct RootView: View {
         .environment(model)
         .environment(\.formatters, model.formatters)
         .environment(\.companionCalendar, model.calendar)
-        .preferredColorScheme(colorScheme)
+        // The app is dark-theme-only — system chrome (status bar, alerts,
+        // keyboard) follows suit regardless of the device's own appearance
+        // setting, matching the hardcoded dark palette in `Theme.Colour`.
+        .preferredColorScheme(.dark)
+        // The rounded, geometric type established on Welcome — set once here
+        // so every screen inherits it, rather than each screen restating the
+        // design on its own text.
+        .fontDesign(.rounded)
         .respectingReduceMotion(.companionStandard, value: model.hasCompletedOnboarding)
         .task {
             guard !didLoad else { return }
@@ -49,14 +56,6 @@ public struct RootView: View {
             RecoveredWalkSheet(session: recoverable.session)
                 .environment(model)
                 .environment(\.formatters, model.formatters)
-        }
-    }
-
-    private var colorScheme: ColorScheme? {
-        switch model.profile?.appearance ?? .system {
-        case .system: nil
-        case .light: .light
-        case .dark: .dark
         }
     }
 

@@ -76,6 +76,8 @@ struct ActivitiesScreen: View {
                     NavigationLink(value: StatisticsRoute()) {
                         summaryRow
                     }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
 
                 ForEach(months, id: \.self) { month in
@@ -100,28 +102,33 @@ struct ActivitiesScreen: View {
         }
     }
 
+    /// The same per-metric ring-card treatment as Today's metric strip, so the
+    /// two most-visited screens read as one family rather than the list
+    /// falling back to a plainer, pre-redesign row style.
     private var summaryRow: some View {
         let total = filtered.reduce(0) { $0 + $1.distance }
         let duration = filtered.reduce(0) { $0 + $1.movingDuration }
-        return HStack {
-            CompactMetric(
-                value: "\(filtered.count)",
-                label: filtered.count == 1 ? "Walk" : "Walks",
-                symbolName: "figure.walk"
-            )
-            Spacer()
-            CompactMetric(
-                value: formatters.distance(total),
+        return HStack(spacing: Theme.Space.m) {
+            RingMetricCard(
+                value: formatters.distanceValue(total),
+                target: nil,
                 label: "Distance",
-                symbolName: "point.topleft.down.to.point.bottomright.curvepath",
+                symbolName: "figure.walk",
+                tint: Theme.Colour.accent,
                 accessibleValue: formatters.accessibleDistance(total)
             )
-            Spacer()
-            CompactMetric(
+            RingMetricCard(
                 value: formatters.duration(duration),
                 label: "Time",
-                symbolName: "clock",
+                symbolName: "clock.fill",
+                tint: Theme.Colour.route,
                 accessibleValue: formatters.spelledDuration(duration)
+            )
+            RingMetricCard(
+                value: "\(filtered.count)",
+                label: filtered.count == 1 ? "Walk" : "Walks",
+                symbolName: "checkmark.circle.fill",
+                tint: Theme.Colour.secondaryAccent
             )
         }
         .padding(.vertical, Theme.Space.xs)
