@@ -19,22 +19,23 @@ public enum Theme {
     /// as the construction path (rather than a flat `Color(...)`) purely so a
     /// future return to light/dark parity is a values change, not a rewrite.
     public enum Colour {
-        /// A warm, bright cream/khaki — the app's primary brand colour.
-        /// Quiet and editorial rather than a loud app-store green, it echoes
-        /// the sand and warm neutrals in the app's photography instead of
-        /// competing with the greens of the walking routes themselves. Every
+        /// A vivid, energetic orange — the app's primary brand colour.
+        /// Chosen over the earlier cream/khoki to read immediately as
+        /// "outdoors and movement" rather than editorial and quiet. Every
         /// primary CTA across the app reads from this one value.
         public static let accent = adaptiveColor(
-            light: (0.93, 0.91, 0.83),
-            dark: (0.93, 0.91, 0.83)
+            light: (1.00, 0.42, 0.15),
+            dark: (1.00, 0.42, 0.15)
         )
 
-        /// A vivid gold — the app's second brand colour: the tab bar,
+        /// A deeper red-orange — the app's second brand colour: the tab bar,
         /// streaks, celebrations, achievement gold and every "share the
-        /// story" moment all read from this one value.
+        /// story" moment all read from this one value. Distinct enough from
+        /// the primary accent to separate "the action" (Start Walk) from
+        /// "the celebration" (a streak, a badge) at a glance.
         public static let secondaryAccent = adaptiveColor(
-            light: (0.98, 0.72, 0.28),
-            dark: (0.98, 0.72, 0.28)
+            light: (1.00, 0.25, 0.20),
+            dark: (1.00, 0.25, 0.20)
         )
 
         /// The recorded route. Stays legible over the dark Apple Maps style.
