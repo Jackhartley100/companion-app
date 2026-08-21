@@ -99,6 +99,9 @@ schemes:
         CompanionUIAutomation: [test]
     run:
       config: Debug
+      # Lets the simulator complete purchases against local fake products
+      # instead of App Store Connect, without changing any app code.
+      storeKitConfiguration: Products.storekit
     # The package's tests are not listed here: XcodeGen cannot reference a Swift
     # package's test targets from an app scheme. Run them with `swift test`, or
     # from Xcode's Test navigator, where the local package's tests appear once

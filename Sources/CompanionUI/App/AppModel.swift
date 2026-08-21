@@ -28,6 +28,16 @@ public final class AppModel {
     public private(set) var unlocks: [AchievementUnlock] = []
     public private(set) var currentWeather: WeatherSnapshot?
     public private(set) var hourlyForecast: [WeatherSnapshot] = []
+    public private(set) var subscriptionStatus: SubscriptionStatus = .free
+    public private(set) var subscriptionOffer: SubscriptionOffer?
+    public var isPurchasing = false
+    public var subscriptionError: String?
+
+    /// Onboarding is done but the trial/subscription isn't active: this is
+    /// what puts the paywall on screen instead of `MainTabView`.
+    public var requiresPaywall: Bool {
+        hasCompletedOnboarding && !subscriptionStatus.isSubscribed
+    }
 
     /// The dog the app is currently talking about.
     public var selectedDogID: UUID? {
@@ -198,6 +208,41 @@ public final class AppModel {
         }
 
         await recorder.checkForRecoverableSession()
+        await refreshSubscription()
+    }
+
+    /// Re-reads status from the store. Cheap and side-effect-free, so it is
+    /// safe to call after `load()`, after a purchase, and after a restore.
+    public func refreshSubscription() async {
+        subscriptionStatus = await environment.subscriptions.status()
+        subscriptionOffer = try? await environment.subscriptions.offer()
+    }
+
+    public func purchaseSubscription() async {
+        subscriptionError = nil
+        isPurchasing = true
+        do {
+            subscriptionStatus = try await environment.subscriptions.purchase()
+        } catch SubscriptionError.notCompleted {
+            // Cancelled or pending Ask to Buy — not an error worth a banner.
+        } catch {
+            subscriptionError = "Couldn't complete the purchase. Please try again."
+        }
+        isPurchasing = false
+    }
+
+    public func restorePurchases() async {
+        subscriptionError = nil
+        isPurchasing = true
+        do {
+            subscriptionStatus = try await environment.subscriptions.restore()
+            if !subscriptionStatus.isSubscribed {
+                subscriptionError = "No previous purchase was found for this Apple ID."
+            }
+        } catch {
+            subscriptionError = "Couldn't restore purchases. Please try again."
+        }
+        isPurchasing = false
     }
 
     /// Reloads only the activity-derived data, after a walk is saved or deleted.

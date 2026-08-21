@@ -26,7 +26,10 @@ public struct RootView: View {
                     retry: { Task { await model.load() } }
                 )
             case .loaded:
-                if model.hasCompletedOnboarding {
+                if model.requiresPaywall {
+                    PaywallScreen()
+                        .transition(.opacity)
+                } else if model.hasCompletedOnboarding {
                     MainTabView()
                         .transition(.opacity)
                 } else {

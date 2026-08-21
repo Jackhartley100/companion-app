@@ -65,23 +65,45 @@ public struct SubscriptionStatus: Sendable, Hashable {
     }
 }
 
+/// What the paywall shows before anyone has bought anything: a price, a
+/// billing period, and the free-trial length, all pre-formatted by StoreKit so
+/// the UI never assembles currency strings itself.
+public struct SubscriptionOffer: Sendable, Hashable {
+    public let displayPrice: String
+    public let period: String
+    public let trialDays: Int?
+
+    public init(displayPrice: String, period: String, trialDays: Int?) {
+        self.displayPrice = displayPrice
+        self.period = period
+        self.trialDays = trialDays
+    }
+}
+
+public enum SubscriptionError: Error, Sendable {
+    /// The purchase sheet was dismissed, or Ask to Buy is pending, or the
+    /// account is otherwise not immediately entitled. Not a failure worth a
+    /// banner — the owner simply isn't subscribed yet.
+    case notCompleted
+    case productUnavailable
+}
+
 public protocol SubscriptionService: Sendable {
     func status() async -> SubscriptionStatus
+    /// The current price and trial terms, fetched fresh from the store.
+    func offer() async throws -> SubscriptionOffer
+    /// Starts the purchase (or trial) flow and returns the resulting status.
+    func purchase() async throws -> SubscriptionStatus
     /// Restores purchases made on another device.
     func restore() async throws -> SubscriptionStatus
 }
 
-/// The subscription service the MVP ships with.
+/// A fixed-answer subscription service for demo mode, previews and tests.
 ///
-/// Everything the app can currently do is free. No paywall is presented and no
-/// feature is withheld, because billing is not implemented and gating a feature
-/// that cannot be bought would be a dead end for the owner.
-///
-// TODO: Replace with a StoreKit 2 implementation once products are configured in
-// App Store Connect and Phase 2 entitlement storage exists. The `Entitlement`
-// checks scattered through the UI already work; only this type changes.
+/// No store is contacted; `status` is whatever it was constructed with, and
+/// `purchase`/`restore` immediately "succeed" into `.premium` so screens that
+/// simulate the happy path don't need a real StoreKit transaction.
 public struct FreeTierSubscriptionService: SubscriptionService {
-    /// Set to `.premium` in a debug build to preview the gated states.
     private let fixed: SubscriptionStatus
 
     public init(status: SubscriptionStatus = .free) {
@@ -89,5 +111,11 @@ public struct FreeTierSubscriptionService: SubscriptionService {
     }
 
     public func status() async -> SubscriptionStatus { fixed }
+
+    public func offer() async throws -> SubscriptionOffer {
+        SubscriptionOffer(displayPrice: "£4.99", period: "month", trialDays: 7)
+    }
+
+    public func purchase() async throws -> SubscriptionStatus { .premium }
     public func restore() async throws -> SubscriptionStatus { fixed }
 }

@@ -16,15 +16,26 @@ struct WalkJourneyTests {
     /// A model backed entirely by memory, with a scripted route ready to replay.
     private func makeModel(
         store: InMemoryStore = InMemoryStore(),
-        route: [RoutePoint]? = nil
+        route: [RoutePoint]? = nil,
+        subscription: SubscriptionStatus = .free
     ) -> AppModel {
         AppModel(
             environment: .preview(
                 store: store,
                 simulatedRoute: route,
-                subscription: .free
+                subscription: subscription
             )
         )
+    }
+
+    /// Drives a model through onboarding: a profile, one dog, and completion.
+    private func onboard(_ model: AppModel) async throws {
+        let account = try await model.environment.authentication.continueOnDevice()
+        await model.saveProfile(
+            UserProfile(id: account.id, firstName: "Jack", preferredDistanceUnit: .kilometres)
+        )
+        await model.saveDog(Dog(name: "Roxy", activityLevel: .veryActive))
+        await model.completeOnboarding()
     }
 
     /// A trace of ordinary walking steps that the route filter will accept.
@@ -91,6 +102,59 @@ struct WalkJourneyTests {
         #expect(dog.breedDescription == "Breed not set")
         #expect(dog.age.months() == nil)
         #expect(dog.weightKilograms == nil)
+    }
+
+    // MARK: Paywall
+
+    @Test("Completing onboarding without a subscription requires the paywall")
+    func onboardingWithoutSubscriptionRequiresPaywall() async throws {
+        let model = makeModel(subscription: .free)
+        await model.load()
+        #expect(model.requiresPaywall == false)  // not onboarded yet, so no paywall either
+
+        try await onboard(model)
+        await model.refreshSubscription()
+
+        #expect(model.hasCompletedOnboarding)
+        #expect(model.requiresPaywall)
+    }
+
+    @Test("An active subscription skips the paywall")
+    func activeSubscriptionSkipsPaywall() async throws {
+        let model = makeModel(subscription: .premium)
+        await model.load()
+        try await onboard(model)
+
+        #expect(model.hasCompletedOnboarding)
+        #expect(model.subscriptionStatus.isSubscribed)
+        #expect(model.requiresPaywall == false)
+    }
+
+    @Test("Purchasing grants premium status and clears the paywall")
+    func purchasingGrantsPremium() async throws {
+        let model = makeModel(subscription: .free)
+        await model.load()
+        try await onboard(model)
+        #expect(model.requiresPaywall)
+
+        await model.purchaseSubscription()
+
+        #expect(model.subscriptionStatus.isSubscribed)
+        #expect(model.requiresPaywall == false)
+        #expect(model.subscriptionError == nil)
+    }
+
+    @Test("Restoring with nothing to restore surfaces a message, not a crash")
+    func restoreWithNothingToRestore() async throws {
+        let model = makeModel(subscription: .free)
+        await model.load()
+        try await onboard(model)
+
+        await model.restorePurchases()
+
+        #expect(model.subscriptionStatus.isSubscribed == false)
+        #expect(model.subscriptionError != nil)
+        #expect(model.requiresPaywall)
     }
 
     // MARK: The central journey

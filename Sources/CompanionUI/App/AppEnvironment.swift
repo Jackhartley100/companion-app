@@ -68,7 +68,13 @@ public final class AppEnvironment {
     /// - Parameter storeName: The directory under Application Support. Demo mode
     ///   passes a different name, which is what keeps demonstration content out
     ///   of the owner's real data — a filesystem boundary rather than a flag.
-    public static func live(storeName: String = "Companion") throws -> AppEnvironment {
+    /// - Parameter subscriptions: Overridable so demo mode can hand back a
+    ///   fixed `.premium` status instead of talking to StoreKit — screenshots
+    ///   and reviewers should never be stopped by a paywall.
+    public static func live(
+        storeName: String = "Companion",
+        subscriptions: (any SubscriptionService)? = nil
+    ) throws -> AppEnvironment {
         let root = try FileStore.defaultRoot().deletingLastPathComponent()
             .appendingPathComponent(storeName, isDirectory: true)
         let store = FileStore(root: root)
@@ -85,7 +91,7 @@ public final class AppEnvironment {
             sessionSnapshotStore: FileSessionSnapshotStore(store: store),
             imageStore: FileImageStore(store: store),
             authentication: LocalAuthenticationService(profileRepository: profileRepository),
-            subscriptions: FreeTierSubscriptionService(),
+            subscriptions: subscriptions ?? Self.liveSubscriptionService(),
             notifications: InactiveNotificationService(),
             health: UnavailableHealthService(),
             analytics: NoOpAnalyticsService(),
@@ -103,6 +109,14 @@ public final class AppEnvironment {
         #endif
     }
 
+    private static func liveSubscriptionService() -> any SubscriptionService {
+        #if canImport(StoreKit) && !os(Linux)
+        StoreKitSubscriptionService()
+        #else
+        FreeTierSubscriptionService()
+        #endif
+    }
+
     /// A live environment rooted at a separate store and pre-filled with
     /// demonstration content, for capturing screenshots.
     ///
@@ -111,7 +125,10 @@ public final class AppEnvironment {
     /// Seeding is skipped when the demo store already has a profile, so
     /// relaunching does not pile up duplicate history.
     public static func demonstration() async throws -> AppEnvironment {
-        let environment = try live(storeName: "CompanionDemo")
+        let environment = try live(
+            storeName: "CompanionDemo",
+            subscriptions: FreeTierSubscriptionService(status: .premium)
+        )
         if try await environment.profileRepository.load() == nil {
             try await environment.seedDemonstrationContent()
         }
